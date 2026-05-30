@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSantriRouteImport } from './routes/_app.santri'
+import { Route as AppNilaiRouteImport } from './routes/_app.nilai'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 
 const AppRoute = AppRouteImport.update({
@@ -28,6 +29,11 @@ const AppSantriRoute = AppSantriRouteImport.update({
   path: '/santri',
   getParentRoute: () => AppRoute,
 } as any)
+const AppNilaiRoute = AppNilaiRouteImport.update({
+  id: '/nilai',
+  path: '/nilai',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -37,11 +43,13 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof AppDashboardRoute
+  '/nilai': typeof AppNilaiRoute
   '/santri': typeof AppSantriRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof AppDashboardRoute
+  '/nilai': typeof AppNilaiRoute
   '/santri': typeof AppSantriRoute
 }
 export interface FileRoutesById {
@@ -49,14 +57,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/nilai': typeof AppNilaiRoute
   '/_app/santri': typeof AppSantriRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/santri'
+  fullPaths: '/' | '/dashboard' | '/nilai' | '/santri'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/santri'
-  id: '__root__' | '/' | '/_app' | '/_app/dashboard' | '/_app/santri'
+  to: '/' | '/dashboard' | '/nilai' | '/santri'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/_app/dashboard'
+    | '/_app/nilai'
+    | '/_app/santri'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSantriRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/nilai': {
+      id: '/_app/nilai'
+      path: '/nilai'
+      fullPath: '/nilai'
+      preLoaderRoute: typeof AppNilaiRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -99,11 +121,13 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
+  AppNilaiRoute: typeof AppNilaiRoute
   AppSantriRoute: typeof AppSantriRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
+  AppNilaiRoute: AppNilaiRoute,
   AppSantriRoute: AppSantriRoute,
 }
 
