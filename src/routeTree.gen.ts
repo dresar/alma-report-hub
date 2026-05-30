@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RaporRouteImport } from './routes/rapor'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSantriRouteImport } from './routes/_app.santri'
 import { Route as AppNilaiRouteImport } from './routes/_app.nilai'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 
+const RaporRoute = RaporRouteImport.update({
+  id: '/rapor',
+  path: '/rapor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -42,12 +48,14 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/rapor': typeof RaporRoute
   '/dashboard': typeof AppDashboardRoute
   '/nilai': typeof AppNilaiRoute
   '/santri': typeof AppSantriRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/rapor': typeof RaporRoute
   '/dashboard': typeof AppDashboardRoute
   '/nilai': typeof AppNilaiRoute
   '/santri': typeof AppSantriRoute
@@ -56,19 +64,21 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/rapor': typeof RaporRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/nilai': typeof AppNilaiRoute
   '/_app/santri': typeof AppSantriRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/nilai' | '/santri'
+  fullPaths: '/' | '/rapor' | '/dashboard' | '/nilai' | '/santri'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/nilai' | '/santri'
+  to: '/' | '/rapor' | '/dashboard' | '/nilai' | '/santri'
   id:
     | '__root__'
     | '/'
     | '/_app'
+    | '/rapor'
     | '/_app/dashboard'
     | '/_app/nilai'
     | '/_app/santri'
@@ -77,10 +87,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  RaporRoute: typeof RaporRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/rapor': {
+      id: '/rapor'
+      path: '/rapor'
+      fullPath: '/rapor'
+      preLoaderRoute: typeof RaporRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -136,6 +154,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  RaporRoute: RaporRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
