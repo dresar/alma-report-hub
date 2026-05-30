@@ -9,38 +9,103 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RaporRouteImport } from './routes/rapor'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppSantriRouteImport } from './routes/_app.santri'
+import { Route as AppNilaiRouteImport } from './routes/_app.nilai'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 
+const RaporRoute = RaporRouteImport.update({
+  id: '/rapor',
+  path: '/rapor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSantriRoute = AppSantriRouteImport.update({
+  id: '/santri',
+  path: '/santri',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNilaiRoute = AppNilaiRouteImport.update({
+  id: '/nilai',
+  path: '/nilai',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/rapor': typeof RaporRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/nilai': typeof AppNilaiRoute
+  '/santri': typeof AppSantriRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/rapor': typeof RaporRoute
+  '/dashboard': typeof AppDashboardRoute
+  '/nilai': typeof AppNilaiRoute
+  '/santri': typeof AppSantriRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/rapor': typeof RaporRoute
+  '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/nilai': typeof AppNilaiRoute
+  '/_app/santri': typeof AppSantriRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/rapor' | '/dashboard' | '/nilai' | '/santri'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/rapor' | '/dashboard' | '/nilai' | '/santri'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/rapor'
+    | '/_app/dashboard'
+    | '/_app/nilai'
+    | '/_app/santri'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
+  RaporRoute: typeof RaporRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/rapor': {
+      id: '/rapor'
+      path: '/rapor'
+      fullPath: '/rapor'
+      preLoaderRoute: typeof RaporRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +113,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/santri': {
+      id: '/_app/santri'
+      path: '/santri'
+      fullPath: '/santri'
+      preLoaderRoute: typeof AppSantriRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/nilai': {
+      id: '/_app/nilai'
+      path: '/nilai'
+      fullPath: '/nilai'
+      preLoaderRoute: typeof AppNilaiRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppDashboardRoute: typeof AppDashboardRoute
+  AppNilaiRoute: typeof AppNilaiRoute
+  AppSantriRoute: typeof AppSantriRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppDashboardRoute: AppDashboardRoute,
+  AppNilaiRoute: AppNilaiRoute,
+  AppSantriRoute: AppSantriRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
+  RaporRoute: RaporRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
