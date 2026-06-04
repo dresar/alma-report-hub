@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { P as Primitive } from "./radix-ui__react-primitive.mjs";
 var NAME = "Arrow";
 var Arrow = reactExports.forwardRef((props, forwardedRef) => {

@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { c as composeEventHandlers } from "./radix-ui__primitive.mjs";
 import { u as useComposedRefs } from "./radix-ui__react-compose-refs.mjs";
 import { a as createContextScope, c as createContext2 } from "./radix-ui__react-context.mjs";

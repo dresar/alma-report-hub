@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { r as reactDomExports } from "./react-dom.mjs";
 import { a as createSlot, b as createSlot$1 } from "./radix-ui__react-slot.mjs";
 var NODES$2 = [

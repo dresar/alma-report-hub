@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports, R as React } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports, R as React } from "./react.mjs";
 import { c as composeRefs } from "./radix-ui__react-compose-refs.mjs";
 var REACT_LAZY_TYPE = /* @__PURE__ */ Symbol.for("react.lazy");
 var use = React[" use ".trim().toString()];

@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { u as useFloating, o as offset, s as shift, f as flip, b as size, a as arrow, h as hide, l as limitShift } from "./floating-ui__react-dom.mjs";
 import { R as Root } from "./radix-ui__react-arrow.mjs";
 import { u as useComposedRefs } from "./radix-ui__react-compose-refs.mjs";

@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { r as reactDomExports } from "./react-dom.mjs";
 import { c as clamp } from "./radix-ui__number.mjs";
 import { c as composeEventHandlers } from "./radix-ui__primitive.mjs";

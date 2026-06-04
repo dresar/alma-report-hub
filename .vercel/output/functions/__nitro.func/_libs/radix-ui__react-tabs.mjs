@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { c as composeEventHandlers } from "./radix-ui__primitive.mjs";
 import { a as createContextScope } from "./radix-ui__react-context.mjs";
 import { R as Root, I as Item, c as createRovingFocusGroupScope } from "./radix-ui__react-roving-focus.mjs";

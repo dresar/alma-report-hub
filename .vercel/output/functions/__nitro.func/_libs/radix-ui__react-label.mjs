@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { a as Primitive } from "./radix-ui__react-primitive.mjs";
 var NAME = "Label";
 var Label = reactExports.forwardRef((props, forwardedRef) => {

@@ -1,1 +1,0 @@
-import{l as t,O as n}from"./index-35MEt5xu.js";import{u as s}from"./use-auth-WRttGgX_.js";function a(){const{isAdmin:e}=s();return e?t.jsx(n,{}):t.jsx("div",{className:"flex items-center justify-center py-32 text-muted-foreground",children:"Akses ditolak. Halaman ini hanya untuk admin."})}export{a as component};

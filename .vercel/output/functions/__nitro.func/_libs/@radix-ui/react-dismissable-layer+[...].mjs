@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "../react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "../react.mjs";
 import { c as composeEventHandlers } from "../radix-ui__primitive.mjs";
 import { P as Primitive, d as dispatchDiscreteCustomEvent } from "../radix-ui__react-primitive.mjs";
 import { u as useComposedRefs } from "../radix-ui__react-compose-refs.mjs";

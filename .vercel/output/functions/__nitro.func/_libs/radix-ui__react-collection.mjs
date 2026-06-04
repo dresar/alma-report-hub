@@ -1,4 +1,4 @@
-import { a as React2, j as jsxRuntimeExports } from "./react.mjs";
+import { a as React2, d as jsxRuntimeExports } from "./react.mjs";
 import { a as createContextScope } from "./radix-ui__react-context.mjs";
 import { u as useComposedRefs } from "./radix-ui__react-compose-refs.mjs";
 import { c as createSlot } from "./radix-ui__react-slot.mjs";

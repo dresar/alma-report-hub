@@ -1,8 +1,8 @@
-import require$$2 from "fs";
 import require$$3 from "path";
 import { c as commonjsGlobal, b as getDefaultExportFromCjs } from "./react.mjs";
 import { r as requireNode } from "./fflate.mjs";
 import { r as require$$1 } from "./fast-png.mjs";
+import require$$2 from "fs";
 import { r as require$$4 } from "./html2canvas.mjs";
 import { r as requirePurify_cjs } from "./dompurify.mjs";
 import { r as requireLib } from "./canvg.mjs";

@@ -1,4 +1,4 @@
-import { r as reactExports, j as jsxRuntimeExports } from "./react.mjs";
+import { r as reactExports, d as jsxRuntimeExports } from "./react.mjs";
 import { s as shouldThrowError, b as notifyManager, n as noop, e as environmentManager, a as QueryObserver, M as MutationObserver } from "./tanstack__query-core.mjs";
 var QueryClientContext = reactExports.createContext(
   void 0
