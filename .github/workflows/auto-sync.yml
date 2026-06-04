@@ -1,7 +1,7 @@
 name: Auto Sync with Upstream
 on:
   schedule:
-    - cron: '0 0 * * *' # Berjalan otomatis setiap jam 12 malam
+    - cron: '*/5 * * * *' # Berjalan otomatis setiap 5 menit (batas tercepat di GitHub Actions)
   workflow_dispatch: # Memungkinkan tombol sinkronisasi manual
 
 jobs:
