@@ -17,7 +17,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/__server"
+      "dest": "/__nitro"
     }
   ]
 }

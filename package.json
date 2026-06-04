@@ -8,6 +8,7 @@
     "dev:backend": "node backend/app.js",
     "dev:all": "npx kill-port 8080 3001 && npx concurrently \"npm run dev\" \"npm run dev:backend\"",
     "build": "vite build",
+    "postbuild": "node scripts/fix-vercel-config.mjs",
     "build:dev": "vite build --mode development",
     "build:backend": "cd backend && npm install && npm run build",
     "preview": "vite preview",
