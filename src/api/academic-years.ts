@@ -11,7 +11,7 @@ export const getAcademicYearsFn = createServerFn()
 
 // ── Create academic year ───────────────────────────────────────────────
 export const createAcademicYearFn = createServerFn()
-  .validator((data: { token: string; year: string }) => data)
+  .inputValidator((data: { token: string; year: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -22,7 +22,7 @@ export const createAcademicYearFn = createServerFn()
 
 // ── Set active academic year ───────────────────────────────────────────
 export const setActiveAcademicYearFn = createServerFn()
-  .validator((data: { token: string; yearId: string }) => data)
+  .inputValidator((data: { token: string; yearId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -34,7 +34,7 @@ export const setActiveAcademicYearFn = createServerFn()
 
 // ── Delete academic year ───────────────────────────────────────────────
 export const deleteAcademicYearFn = createServerFn()
-  .validator((data: { token: string; yearId: string }) => data)
+  .inputValidator((data: { token: string; yearId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);

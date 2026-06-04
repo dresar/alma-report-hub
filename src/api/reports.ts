@@ -3,7 +3,7 @@ import { getDb, verifyToken } from "./_db";
 
 // ── Get report card data for a student ────────────────────────────────
 export const getReportCardFn = createServerFn()
-  .validator((data: { token: string; studentId: string; academicYearId: string }) => data)
+  .inputValidator((data: { token: string; studentId: string; academicYearId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -82,7 +82,7 @@ export const getReportCardFn = createServerFn()
 
 // ── List students for report ────────────────────────────────────────────
 export const getReportStudentsFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; rombelId?: string; classLevel?: number }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; rombelId?: string; classLevel?: number }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);

@@ -3,7 +3,7 @@ import { getDb, verifyToken } from "./_db";
 
 // ── Subject scores ─────────────────────────────────────────────────────
 export const getSubjectScoresFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; rombelId: string }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; rombelId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -27,7 +27,7 @@ export const getSubjectScoresFn = createServerFn()
   });
 
 export const saveSubjectScoresFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     academicYearId: string;
     scores: Array<{ studentId: string; subjectId: string; tugas?: number; uts?: number; uas?: number }>;
@@ -65,7 +65,7 @@ export const saveSubjectScoresFn = createServerFn()
 
 // ── Speech scores ──────────────────────────────────────────────────────
 export const getSpeechScoresFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; rombelId: string }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; rombelId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -84,7 +84,7 @@ export const getSpeechScoresFn = createServerFn()
   });
 
 export const saveSpeechScoresFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     academicYearId: string;
     scores: Array<{ studentId: string; language: string; penguasaan?: number; kelancaran?: number; intonasi?: number; kepercayaan?: number; penampilan?: number }>;
@@ -109,7 +109,7 @@ export const saveSpeechScoresFn = createServerFn()
 
 // ── Computer scores ────────────────────────────────────────────────────
 export const getComputerScoresFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; rombelId: string }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; rombelId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -127,7 +127,7 @@ export const getComputerScoresFn = createServerFn()
   });
 
 export const saveComputerScoresFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     academicYearId: string;
     scores: Array<{ studentId: string; pengoperasian?: number; msWord?: number; msExcel?: number; internet?: number; presentasi?: number }>;
@@ -151,7 +151,7 @@ export const saveComputerScoresFn = createServerFn()
 
 // ── Discussion scores ──────────────────────────────────────────────────
 export const getDiscussionScoresFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; rombelId: string }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; rombelId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -169,7 +169,7 @@ export const getDiscussionScoresFn = createServerFn()
   });
 
 export const saveDiscussionScoresFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     academicYearId: string;
     scores: Array<{ studentId: string; keaktifan?: number; argumentasi?: number; kerjasama?: number; penguasaan?: number; etika?: number }>;
@@ -193,7 +193,7 @@ export const saveDiscussionScoresFn = createServerFn()
 
 // ── Attendance ─────────────────────────────────────────────────────────
 export const getAttendanceFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; rombelId: string }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; rombelId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -211,7 +211,7 @@ export const getAttendanceFn = createServerFn()
   });
 
 export const saveAttendanceFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     academicYearId: string;
     attendance: Array<{ studentId: string; schoolDays?: number; present?: number; permission?: number; absent?: number }>;

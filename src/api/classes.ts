@@ -20,7 +20,7 @@ export const getClassesFn = createServerFn()
 
 // ── Get rombels (optionally filtered by class level) ───────────────────
 export const getRombelsFn = createServerFn()
-  .validator((data: { classLevel?: number }) => data)
+  .inputValidator((data: { classLevel?: number }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     if (data.classLevel !== undefined) {
@@ -42,7 +42,7 @@ export const getRombelsFn = createServerFn()
 
 // ── Create rombel ──────────────────────────────────────────────────────
 export const createRombelFn = createServerFn()
-  .validator((data: { token: string; classLevel: number; name: string; waliKelasId?: string }) => data)
+  .inputValidator((data: { token: string; classLevel: number; name: string; waliKelasId?: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -59,7 +59,7 @@ export const createRombelFn = createServerFn()
 
 // ── Update rombel ──────────────────────────────────────────────────────
 export const updateRombelFn = createServerFn()
-  .validator((data: { token: string; rombelId: string; waliKelasId: string | null }) => data)
+  .inputValidator((data: { token: string; rombelId: string; waliKelasId: string | null }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -73,7 +73,7 @@ export const updateRombelFn = createServerFn()
 
 // ── Delete rombel ──────────────────────────────────────────────────────
 export const deleteRombelFn = createServerFn()
-  .validator((data: { token: string; rombelId: string }) => data)
+  .inputValidator((data: { token: string; rombelId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);

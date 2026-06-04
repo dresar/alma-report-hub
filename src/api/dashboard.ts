@@ -3,7 +3,7 @@ import { getDb, verifyToken } from "./_db";
 
 // ── Dashboard stats ────────────────────────────────────────────────────
 export const getDashboardStatsFn = createServerFn()
-  .validator((data: { token: string; academicYearId?: string }) => data)
+  .inputValidator((data: { token: string; academicYearId?: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -37,7 +37,7 @@ export const getDashboardStatsFn = createServerFn()
 
 // ── Top students ───────────────────────────────────────────────────────
 export const getTopStudentsFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; limit?: number }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; limit?: number }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -58,7 +58,7 @@ export const getTopStudentsFn = createServerFn()
 
 // ── Value trend (by year) ──────────────────────────────────────────────
 export const getValueTrendFn = createServerFn()
-  .validator((data: { token: string }) => data)
+  .inputValidator((data: { token: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -72,7 +72,7 @@ export const getValueTrendFn = createServerFn()
 
 // ── Class ranking ──────────────────────────────────────────────────────
 export const getClassRankingFn = createServerFn()
-  .validator((data: { token: string; academicYearId: string; classLevel?: number }) => data)
+  .inputValidator((data: { token: string; academicYearId: string; classLevel?: number }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);

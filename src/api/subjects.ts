@@ -3,7 +3,7 @@ import { getDb, verifyToken } from "./_db";
 
 // ── List subjects ──────────────────────────────────────────────────────
 export const getSubjectsFn = createServerFn()
-  .validator((data: { classLevel?: number }) => data)
+  .inputValidator((data: { classLevel?: number }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     if (data.classLevel !== undefined) {
@@ -18,7 +18,7 @@ export const getSubjectsFn = createServerFn()
 
 // ── Create subject ─────────────────────────────────────────────────────
 export const createSubjectFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     name: string;
     classLevel: number;
@@ -41,7 +41,7 @@ export const createSubjectFn = createServerFn()
 
 // ── Update subject ─────────────────────────────────────────────────────
 export const updateSubjectFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     subjectId: string;
     name?: string;
@@ -79,7 +79,7 @@ export const updateSubjectFn = createServerFn()
 
 // ── Delete (soft) subject ──────────────────────────────────────────────
 export const deleteSubjectFn = createServerFn()
-  .validator((data: { token: string; subjectId: string }) => data)
+  .inputValidator((data: { token: string; subjectId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);

@@ -14,7 +14,7 @@ export type StudentQuery = {
 
 // ── List students ──────────────────────────────────────────────────────
 export const getStudentsFn = createServerFn()
-  .validator((data: StudentQuery) => data)
+  .inputValidator((data: StudentQuery) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -61,7 +61,7 @@ export const getStudentsFn = createServerFn()
 
 // ── Get single student ─────────────────────────────────────────────────
 export const getStudentFn = createServerFn()
-  .validator((data: { token: string; studentId: string }) => data)
+  .inputValidator((data: { token: string; studentId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
@@ -81,7 +81,7 @@ export const getStudentFn = createServerFn()
 
 // ── Create student ─────────────────────────────────────────────────────
 export const createStudentFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     stambuk: string;
     fullName: string;
@@ -118,7 +118,7 @@ export const createStudentFn = createServerFn()
 
 // ── Update student ─────────────────────────────────────────────────────
 export const updateStudentFn = createServerFn()
-  .validator((data: {
+  .inputValidator((data: {
     token: string;
     studentId: string;
     stambuk?: string;
@@ -153,7 +153,7 @@ export const updateStudentFn = createServerFn()
 
 // ── Delete student ─────────────────────────────────────────────────────
 export const deleteStudentFn = createServerFn()
-  .validator((data: { token: string; studentId: string }) => data)
+  .inputValidator((data: { token: string; studentId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -164,7 +164,7 @@ export const deleteStudentFn = createServerFn()
 
 // ── Bulk delete students ───────────────────────────────────────────────
 export const bulkDeleteStudentsFn = createServerFn()
-  .validator((data: { token: string; studentIds: string[] }) => data)
+  .inputValidator((data: { token: string; studentIds: string[] }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -176,7 +176,7 @@ export const bulkDeleteStudentsFn = createServerFn()
 
 // ── Assign rombel to student ───────────────────────────────────────────
 export const assignRombelFn = createServerFn()
-  .validator((data: { token: string; studentId: string; rombelId: string; academicYearId: string }) => data)
+  .inputValidator((data: { token: string; studentId: string; rombelId: string; academicYearId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);

@@ -4,7 +4,7 @@ import { getDb, signToken, verifyToken } from "./_db";
 
 // ── Login ──────────────────────────────────────────────────────────────
 export const loginFn = createServerFn()
-  .validator((data: { email: string; password: string }) => data)
+  .inputValidator((data: { email: string; password: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const { email, password } = data;
@@ -29,14 +29,14 @@ export const loginFn = createServerFn()
 
 // ── Verify session ─────────────────────────────────────────────────────
 export const getMeFn = createServerFn()
-  .validator((data: { token: string }) => data)
+  .inputValidator((data: { token: string }) => data)
   .handler(async ({ data }) => {
     return verifyToken(data.token);
   });
 
 // ── Change password ────────────────────────────────────────────────────
 export const changePasswordFn = createServerFn()
-  .validator((data: { token: string; oldPassword: string; newPassword: string }) => data)
+  .inputValidator((data: { token: string; oldPassword: string; newPassword: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const { token, oldPassword, newPassword } = data;
@@ -57,7 +57,7 @@ export const changePasswordFn = createServerFn()
 
 // ── Update Profile ─────────────────────────────────────────────────────
 export const updateProfileFn = createServerFn()
-  .validator((data: { token: string; name: string; email: string }) => data)
+  .inputValidator((data: { token: string; name: string; email: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const { token, name, email } = data;
@@ -75,7 +75,7 @@ export const updateProfileFn = createServerFn()
 
 // ── List users (admin only) ────────────────────────────────────────────
 export const getUsersFn = createServerFn()
-  .validator((data: { token: string }) => data)
+  .inputValidator((data: { token: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -86,7 +86,7 @@ export const getUsersFn = createServerFn()
 
 // ── Create user (admin only) ───────────────────────────────────────────
 export const createUserFn = createServerFn()
-  .validator((data: { token: string; name: string; email: string; password: string; role: "admin" | "wali_kelas" | "guru" }) => data)
+  .inputValidator((data: { token: string; name: string; email: string; password: string; role: "admin" | "wali_kelas" | "guru" }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const { token, name, email, password, role } = data;
@@ -104,7 +104,7 @@ export const createUserFn = createServerFn()
 
 // ── Toggle user active ─────────────────────────────────────────────────
 export const toggleUserFn = createServerFn()
-  .validator((data: { token: string; userId: string; isActive: boolean }) => data)
+  .inputValidator((data: { token: string; userId: string; isActive: boolean }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
@@ -115,7 +115,7 @@ export const toggleUserFn = createServerFn()
 
 // ── Delete user ────────────────────────────────────────────────────────
 export const deleteUserFn = createServerFn()
-  .validator((data: { token: string; userId: string }) => data)
+  .inputValidator((data: { token: string; userId: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     const me = verifyToken(data.token);
