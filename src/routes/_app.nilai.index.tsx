@@ -10,14 +10,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { getAcademicYearsFn } from "@/lib/api/academic-years.functions";
 import { getRombelsFn } from "@/lib/api/classes.functions";
-import { fetchBackend } from "@/lib/api/fetch-helper";
+import {
+  getStudentsFn,
+} from "@/lib/api/students.functions";
+import {
+  getSubjectScoresFn,
+  saveSubjectScoresFn,
+  getSpeechScoresFn,
+  saveSpeechScoresFn,
+  getComputerScoresFn,
+  saveComputerScoresFn,
+  getDiscussionScoresFn,
+  saveDiscussionScoresFn,
+  getAttendanceFn,
+  saveAttendanceFn,
+} from "@/lib/api/scores.functions";
 import { toast } from "sonner";
 import { exportNilaiToExcel, importNilaiFromExcel } from "@/lib/excel-helpers";
 
-export const Route = createFileRoute("/_app/nilai/")({
+export const Route = createFileRoute("/_app/nilai/")(({
   head: () => ({ meta: [{ title: "Daftar Nilai Santri — SIRA" }] }),
   component: NilaiIndexPage,
-});
+} as any));
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -63,43 +77,41 @@ function NilaiIndexPage() {
   const selectedRombel = rombels?.find((r) => r.id === rombelId);
   const classLevel = selectedRombel?.class_level ?? 0;
 
-  // Fetch students for the selected class
+  // Fetch students for the selected class using server function
   const { data: studentsData, isLoading } = useQuery({
     queryKey: ["students", yearId, rombelId],
     queryFn: () =>
-      fetchBackend<any>("/api/students", {
-        body: { token: token!, academicYearId: yearId, rombelId, limit: 1000 },
-      }),
+      getStudentsFn({ data: { token: token!, academicYearId: yearId, rombelId, limit: 1000 } }),
     enabled: !!token && !!yearId && !!rombelId,
   });
 
   const students = studentsData?.data ?? [];
 
-  // Data fetching for Export
+  // Data fetching for Export using server functions
   const handleExport = async (isTemplate: boolean) => {
     if (!yearId || !rombelId) {
       toast.error("Pilih tahun ajaran dan kelas terlebih dahulu");
       return;
     }
     const loadingToast = toast.loading(isTemplate ? "Menyiapkan template..." : "Menyiapkan data export...");
-    
+
     try {
       const [akademik, pidato, komputer, diskusi, kehadiran] = await Promise.all([
-        fetchBackend<any>("/api/scores/subject", { body: { token: token!, academicYearId: yearId, rombelId } }),
-        fetchBackend<any>("/api/scores/speech", { body: { token: token!, academicYearId: yearId, rombelId } }),
-        classLevel >= 4 ? fetchBackend<any>("/api/scores/computer", { body: { token: token!, academicYearId: yearId, rombelId } }) : Promise.resolve(null),
-        classLevel >= 5 ? fetchBackend<any>("/api/scores/discussion", { body: { token: token!, academicYearId: yearId, rombelId } }) : Promise.resolve(null),
-        fetchBackend<any>("/api/scores/attendance", { body: { token: token!, academicYearId: yearId, rombelId } }),
+        getSubjectScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
+        getSpeechScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
+        classLevel >= 4 ? getComputerScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }) : Promise.resolve(null),
+        classLevel >= 5 ? getDiscussionScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }) : Promise.resolve(null),
+        getAttendanceFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
       ]);
 
       const data = {
-        students: akademik.students, // they all return same students
-        subjects: akademik.subjects,
-        akademik: akademik.scores,
-        pidato: pidato.scores,
-        komputer: komputer?.scores || [],
-        diskusi: diskusi?.scores || [],
-        kehadiran: kehadiran.attendance,
+        students: (akademik as any).students,
+        subjects: (akademik as any).subjects,
+        akademik: (akademik as any).scores,
+        pidato: (pidato as any).scores,
+        komputer: (komputer as any)?.scores || [],
+        diskusi: (diskusi as any)?.scores || [],
+        kehadiran: (kehadiran as any).attendance,
       };
 
       await exportNilaiToExcel(data, classLevel, isTemplate);
@@ -115,11 +127,11 @@ function NilaiIndexPage() {
       if (!parsed) throw new Error("Gagal membaca file Excel");
 
       const promises = [];
-      if (parsed.akademik.length > 0) promises.push(fetchBackend("/api/scores/subject/save", { body: { token: token!, academicYearId: yearId, scores: parsed.akademik } }));
-      if (parsed.pidato.length > 0) promises.push(fetchBackend("/api/scores/speech/save", { body: { token: token!, academicYearId: yearId, scores: parsed.pidato } }));
-      if (parsed.komputer.length > 0) promises.push(fetchBackend("/api/scores/computer/save", { body: { token: token!, academicYearId: yearId, scores: parsed.komputer } }));
-      if (parsed.diskusi.length > 0) promises.push(fetchBackend("/api/scores/discussion/save", { body: { token: token!, academicYearId: yearId, scores: parsed.diskusi } }));
-      if (parsed.kehadiran.length > 0) promises.push(fetchBackend("/api/scores/attendance/save", { body: { token: token!, academicYearId: yearId, attendance: parsed.kehadiran } }));
+      if (parsed.akademik.length > 0) promises.push(saveSubjectScoresFn({ data: { token: token!, academicYearId: yearId, scores: parsed.akademik } }));
+      if (parsed.pidato.length > 0) promises.push(saveSpeechScoresFn({ data: { token: token!, academicYearId: yearId, scores: parsed.pidato } }));
+      if (parsed.komputer.length > 0) promises.push(saveComputerScoresFn({ data: { token: token!, academicYearId: yearId, scores: parsed.komputer } }));
+      if (parsed.diskusi.length > 0) promises.push(saveDiscussionScoresFn({ data: { token: token!, academicYearId: yearId, scores: parsed.diskusi } }));
+      if (parsed.kehadiran.length > 0) promises.push(saveAttendanceFn({ data: { token: token!, academicYearId: yearId, attendance: parsed.kehadiran } }));
 
       await Promise.all(promises);
     },
@@ -149,7 +161,7 @@ function NilaiIndexPage() {
     <div className="space-y-6">
       <Card className="shadow-none">
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Filter Periode & Kelas</CardTitle>
+          <CardTitle className="text-base">Filter Periode &amp; Kelas</CardTitle>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => handleExport(true)}>
               <FileDown className="w-4 h-4 mr-2" /> Template
@@ -224,11 +236,11 @@ function NilaiIndexPage() {
                       <TableCell className="font-medium">{student.full_name}</TableCell>
                       <TableCell>{student.stambuk}</TableCell>
                       <TableCell className="text-center">
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
-                          onClick={() => navigate({ 
-                            to: "/nilai/$studentId", 
+                          onClick={() => navigate({
+                            to: "/nilai/$studentId",
                             params: { studentId: student.id },
                             search: { yearId, rombelId }
                           })}

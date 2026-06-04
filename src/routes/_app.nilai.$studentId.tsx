@@ -11,7 +11,20 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { fetchBackend } from "@/lib/api/fetch-helper";
+import { getStudentByIdFn } from "@/lib/api/students.functions";
+import { getRombelsFn } from "@/lib/api/classes.functions";
+import {
+  getSubjectScoresFn,
+  getSpeechScoresFn,
+  getComputerScoresFn,
+  getDiscussionScoresFn,
+  getAttendanceFn,
+  saveSubjectScoresFn,
+  saveSpeechScoresFn,
+  saveComputerScoresFn,
+  saveDiscussionScoresFn,
+  saveAttendanceFn,
+} from "@/lib/api/scores.functions";
 
 export const Route = createFileRoute("/_app/nilai/$studentId")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -76,13 +89,13 @@ function NilaiStudentPage() {
   // Fetch Student Info & Rombel info
   const { data: studentInfo } = useQuery({
     queryKey: ["student", studentId],
-    queryFn: () => fetchBackend<any>("/api/students/get", { body: { token: token!, studentId } }),
+    queryFn: () => getStudentByIdFn({ data: { token: token!, studentId } }),
     enabled: !!token,
   });
 
   const { data: rombelData } = useQuery({
     queryKey: ["rombels"],
-    queryFn: () => fetchBackend<any>("/api/rombels", { body: {} }),
+    queryFn: () => getRombelsFn({ data: {} }),
     enabled: !!token,
   });
 
@@ -91,27 +104,27 @@ function NilaiStudentPage() {
   // Fetch all scores for the rombel (we will filter locally)
   const { data: akademikData } = useQuery({
     queryKey: ["subject-scores", yearId, rombelId],
-    queryFn: () => fetchBackend<any>("/api/scores/subject", { body: { token: token!, academicYearId: yearId, rombelId } }),
+    queryFn: () => getSubjectScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
     enabled: !!token && !!yearId && !!rombelId,
   });
   const { data: speechData } = useQuery({
     queryKey: ["speech-scores", yearId, rombelId],
-    queryFn: () => fetchBackend<any>("/api/scores/speech", { body: { token: token!, academicYearId: yearId, rombelId } }),
+    queryFn: () => getSpeechScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
     enabled: !!token && !!yearId && !!rombelId,
   });
   const { data: compData } = useQuery({
     queryKey: ["computer-scores", yearId, rombelId],
-    queryFn: () => fetchBackend<any>("/api/scores/computer", { body: { token: token!, academicYearId: yearId, rombelId } }),
+    queryFn: () => getComputerScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
     enabled: !!token && !!yearId && !!rombelId && classLevel >= 4,
   });
   const { data: discData } = useQuery({
     queryKey: ["discussion-scores", yearId, rombelId],
-    queryFn: () => fetchBackend<any>("/api/scores/discussion", { body: { token: token!, academicYearId: yearId, rombelId } }),
+    queryFn: () => getDiscussionScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
     enabled: !!token && !!yearId && !!rombelId && classLevel >= 5,
   });
   const { data: attData } = useQuery({
     queryKey: ["attendance", yearId, rombelId],
-    queryFn: () => fetchBackend<any>("/api/scores/attendance", { body: { token: token!, academicYearId: yearId, rombelId } }),
+    queryFn: () => getAttendanceFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
     enabled: !!token && !!yearId && !!rombelId,
   });
 
@@ -191,7 +204,7 @@ function NilaiStudentPage() {
         uts: akademikState[`${subj.id}_uts`] !== "" ? Number(akademikState[`${subj.id}_uts`]) : null,
         uas: akademikState[`${subj.id}_uas`] !== "" ? Number(akademikState[`${subj.id}_uas`]) : null,
       }));
-      return fetchBackend("/api/scores/subject/save", { body: { token: token!, academicYearId: yearId, scores } });
+      return saveSubjectScoresFn({ data: { token: token!, academicYearId: yearId, scores } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["subject-scores"] });
@@ -214,7 +227,7 @@ function NilaiStudentPage() {
           penampilan: row.penampilan !== "" ? Number(row.penampilan) : null,
         };
       });
-      return fetchBackend("/api/scores/speech/save", { body: { token: token!, academicYearId: yearId, scores } });
+      return saveSpeechScoresFn({ data: { token: token!, academicYearId: yearId, scores } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["speech-scores"] });
@@ -234,7 +247,7 @@ function NilaiStudentPage() {
         internet: compState.internet !== "" ? Number(compState.internet) : null,
         presentasi: compState.presentasi !== "" ? Number(compState.presentasi) : null,
       }];
-      return fetchBackend("/api/scores/computer/save", { body: { token: token!, academicYearId: yearId, scores } });
+      return saveComputerScoresFn({ data: { token: token!, academicYearId: yearId, scores } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["computer-scores"] });
@@ -254,7 +267,7 @@ function NilaiStudentPage() {
         penguasaan: discState.penguasaan !== "" ? Number(discState.penguasaan) : null,
         etika: discState.etika !== "" ? Number(discState.etika) : null,
       }];
-      return fetchBackend("/api/scores/discussion/save", { body: { token: token!, academicYearId: yearId, scores } });
+      return saveDiscussionScoresFn({ data: { token: token!, academicYearId: yearId, scores } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["discussion-scores"] });
@@ -273,7 +286,7 @@ function NilaiStudentPage() {
         permission: Number(attState.permission || 0),
         absent: Number(attState.absent || 0),
       }];
-      return fetchBackend("/api/scores/attendance/save", { body: { token: token!, academicYearId: yearId, attendance } });
+      return saveAttendanceFn({ data: { token: token!, academicYearId: yearId, attendance } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["attendance"] });
