@@ -13,8 +13,16 @@ import { Route as RaporRouteImport } from './routes/rapor'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppSantriRouteImport } from './routes/_app.santri'
-import { Route as AppNilaiRouteImport } from './routes/_app.nilai'
+import { Route as AppProfilRouteImport } from './routes/_app.profil'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppAdminRouteImport } from './routes/_app.admin'
+import { Route as AppNilaiIndexRouteImport } from './routes/_app.nilai.index'
+import { Route as AppAdminIndexRouteImport } from './routes/_app.admin.index'
+import { Route as AppNilaiStudentIdRouteImport } from './routes/_app.nilai.$studentId'
+import { Route as AppAdminTahunAjaranRouteImport } from './routes/_app.admin.tahun-ajaran'
+import { Route as AppAdminPenggunaRouteImport } from './routes/_app.admin.pengguna'
+import { Route as AppAdminMapelRouteImport } from './routes/_app.admin.mapel'
+import { Route as AppAdminKelasRouteImport } from './routes/_app.admin.kelas'
 
 const RaporRoute = RaporRouteImport.update({
   id: '/rapor',
@@ -35,9 +43,9 @@ const AppSantriRoute = AppSantriRouteImport.update({
   path: '/santri',
   getParentRoute: () => AppRoute,
 } as any)
-const AppNilaiRoute = AppNilaiRouteImport.update({
-  id: '/nilai',
-  path: '/nilai',
+const AppProfilRoute = AppProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -45,43 +53,139 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNilaiIndexRoute = AppNilaiIndexRouteImport.update({
+  id: '/nilai/',
+  path: '/nilai/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppNilaiStudentIdRoute = AppNilaiStudentIdRouteImport.update({
+  id: '/nilai/$studentId',
+  path: '/nilai/$studentId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminTahunAjaranRoute = AppAdminTahunAjaranRouteImport.update({
+  id: '/tahun-ajaran',
+  path: '/tahun-ajaran',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminPenggunaRoute = AppAdminPenggunaRouteImport.update({
+  id: '/pengguna',
+  path: '/pengguna',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminMapelRoute = AppAdminMapelRouteImport.update({
+  id: '/mapel',
+  path: '/mapel',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminKelasRoute = AppAdminKelasRouteImport.update({
+  id: '/kelas',
+  path: '/kelas',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/rapor': typeof RaporRoute
+  '/admin': typeof AppAdminRouteWithChildren
   '/dashboard': typeof AppDashboardRoute
-  '/nilai': typeof AppNilaiRoute
+  '/profil': typeof AppProfilRoute
   '/santri': typeof AppSantriRoute
+  '/admin/kelas': typeof AppAdminKelasRoute
+  '/admin/mapel': typeof AppAdminMapelRoute
+  '/admin/pengguna': typeof AppAdminPenggunaRoute
+  '/admin/tahun-ajaran': typeof AppAdminTahunAjaranRoute
+  '/nilai/$studentId': typeof AppNilaiStudentIdRoute
+  '/admin/': typeof AppAdminIndexRoute
+  '/nilai/': typeof AppNilaiIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/rapor': typeof RaporRoute
   '/dashboard': typeof AppDashboardRoute
-  '/nilai': typeof AppNilaiRoute
+  '/profil': typeof AppProfilRoute
   '/santri': typeof AppSantriRoute
+  '/admin/kelas': typeof AppAdminKelasRoute
+  '/admin/mapel': typeof AppAdminMapelRoute
+  '/admin/pengguna': typeof AppAdminPenggunaRoute
+  '/admin/tahun-ajaran': typeof AppAdminTahunAjaranRoute
+  '/nilai/$studentId': typeof AppNilaiStudentIdRoute
+  '/admin': typeof AppAdminIndexRoute
+  '/nilai': typeof AppNilaiIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/rapor': typeof RaporRoute
+  '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/dashboard': typeof AppDashboardRoute
-  '/_app/nilai': typeof AppNilaiRoute
+  '/_app/profil': typeof AppProfilRoute
   '/_app/santri': typeof AppSantriRoute
+  '/_app/admin/kelas': typeof AppAdminKelasRoute
+  '/_app/admin/mapel': typeof AppAdminMapelRoute
+  '/_app/admin/pengguna': typeof AppAdminPenggunaRoute
+  '/_app/admin/tahun-ajaran': typeof AppAdminTahunAjaranRoute
+  '/_app/nilai/$studentId': typeof AppNilaiStudentIdRoute
+  '/_app/admin/': typeof AppAdminIndexRoute
+  '/_app/nilai/': typeof AppNilaiIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/rapor' | '/dashboard' | '/nilai' | '/santri'
+  fullPaths:
+    | '/'
+    | '/rapor'
+    | '/admin'
+    | '/dashboard'
+    | '/profil'
+    | '/santri'
+    | '/admin/kelas'
+    | '/admin/mapel'
+    | '/admin/pengguna'
+    | '/admin/tahun-ajaran'
+    | '/nilai/$studentId'
+    | '/admin/'
+    | '/nilai/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/rapor' | '/dashboard' | '/nilai' | '/santri'
+  to:
+    | '/'
+    | '/rapor'
+    | '/dashboard'
+    | '/profil'
+    | '/santri'
+    | '/admin/kelas'
+    | '/admin/mapel'
+    | '/admin/pengguna'
+    | '/admin/tahun-ajaran'
+    | '/nilai/$studentId'
+    | '/admin'
+    | '/nilai'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/rapor'
+    | '/_app/admin'
     | '/_app/dashboard'
-    | '/_app/nilai'
+    | '/_app/profil'
     | '/_app/santri'
+    | '/_app/admin/kelas'
+    | '/_app/admin/mapel'
+    | '/_app/admin/pengguna'
+    | '/_app/admin/tahun-ajaran'
+    | '/_app/nilai/$studentId'
+    | '/_app/admin/'
+    | '/_app/nilai/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -120,11 +224,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSantriRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/nilai': {
-      id: '/_app/nilai'
-      path: '/nilai'
-      fullPath: '/nilai'
-      preLoaderRoute: typeof AppNilaiRouteImport
+    '/_app/profil': {
+      id: '/_app/profil'
+      path: '/profil'
+      fullPath: '/profil'
+      preLoaderRoute: typeof AppProfilRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -134,19 +238,101 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/nilai/': {
+      id: '/_app/nilai/'
+      path: '/nilai'
+      fullPath: '/nilai/'
+      preLoaderRoute: typeof AppNilaiIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/': {
+      id: '/_app/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AppAdminIndexRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/nilai/$studentId': {
+      id: '/_app/nilai/$studentId'
+      path: '/nilai/$studentId'
+      fullPath: '/nilai/$studentId'
+      preLoaderRoute: typeof AppNilaiStudentIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/tahun-ajaran': {
+      id: '/_app/admin/tahun-ajaran'
+      path: '/tahun-ajaran'
+      fullPath: '/admin/tahun-ajaran'
+      preLoaderRoute: typeof AppAdminTahunAjaranRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/pengguna': {
+      id: '/_app/admin/pengguna'
+      path: '/pengguna'
+      fullPath: '/admin/pengguna'
+      preLoaderRoute: typeof AppAdminPenggunaRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/mapel': {
+      id: '/_app/admin/mapel'
+      path: '/mapel'
+      fullPath: '/admin/mapel'
+      preLoaderRoute: typeof AppAdminMapelRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/kelas': {
+      id: '/_app/admin/kelas'
+      path: '/kelas'
+      fullPath: '/admin/kelas'
+      preLoaderRoute: typeof AppAdminKelasRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
   }
 }
 
+interface AppAdminRouteChildren {
+  AppAdminKelasRoute: typeof AppAdminKelasRoute
+  AppAdminMapelRoute: typeof AppAdminMapelRoute
+  AppAdminPenggunaRoute: typeof AppAdminPenggunaRoute
+  AppAdminTahunAjaranRoute: typeof AppAdminTahunAjaranRoute
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminKelasRoute: AppAdminKelasRoute,
+  AppAdminMapelRoute: AppAdminMapelRoute,
+  AppAdminPenggunaRoute: AppAdminPenggunaRoute,
+  AppAdminTahunAjaranRoute: AppAdminTahunAjaranRoute,
+  AppAdminIndexRoute: AppAdminIndexRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
 interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRouteWithChildren
   AppDashboardRoute: typeof AppDashboardRoute
-  AppNilaiRoute: typeof AppNilaiRoute
+  AppProfilRoute: typeof AppProfilRoute
   AppSantriRoute: typeof AppSantriRoute
+  AppNilaiStudentIdRoute: typeof AppNilaiStudentIdRoute
+  AppNilaiIndexRoute: typeof AppNilaiIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRouteWithChildren,
   AppDashboardRoute: AppDashboardRoute,
-  AppNilaiRoute: AppNilaiRoute,
+  AppProfilRoute: AppProfilRoute,
   AppSantriRoute: AppSantriRoute,
+  AppNilaiStudentIdRoute: AppNilaiStudentIdRoute,
+  AppNilaiIndexRoute: AppNilaiIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -159,3 +345,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
