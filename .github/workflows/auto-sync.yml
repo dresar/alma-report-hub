@@ -1,0 +1,26 @@
+name: Auto Sync with Upstream
+on:
+  schedule:
+    - cron: '0 0 * * *' # Berjalan otomatis setiap jam 12 malam
+  workflow_dispatch: # Memungkinkan tombol sinkronisasi manual
+
+jobs:
+  sync_with_upstream:
+    runs-on: ubuntu-latest
+    name: Sync main branch
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v3
+
+      - name: Sync upstream changes
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
+        with:
+          upstream_sync_repo: NCN0C/alma-report-hub # Username asli Anda
+          upstream_sync_branch: main                # Branch asli
+          target_sync_branch: main                  # Branch fork yang akan diupdate
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }} # Token otomatis GitHub
+
+      - name: Timestamp & Log
+        if: steps.sync.outputs.has_new_commits == 'true'
+        run: echo "Berhasil menyinkronkan perubahan baru dari repository asli."
