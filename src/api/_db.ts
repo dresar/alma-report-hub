@@ -2,7 +2,6 @@
  * Server-only: Database connection singleton & JWT helpers.
  * Never imported by client code directly.
  */
-import "server-only";
 import postgres from "postgres";
 import jwt from "jsonwebtoken";
 
