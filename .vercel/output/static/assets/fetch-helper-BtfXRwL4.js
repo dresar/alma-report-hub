@@ -1,0 +1,1 @@
+const s=typeof import.meta<"u"&&"http://localhost:3001"||"http://localhost:3001";async function d(n,t){const e=t?.method??"POST",r=`${s}${n}`,o=await fetch(r,{method:e,headers:{"Content-Type":"application/json"},body:e==="POST"?JSON.stringify(t?.body??{}):void 0}),a=await o.json();if(!o.ok)throw new Error(a.error||"Terjadi kesalahan pada server");return a}export{d as f};

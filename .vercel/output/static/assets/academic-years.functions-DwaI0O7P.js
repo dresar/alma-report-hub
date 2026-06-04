@@ -1,0 +1,1 @@
+import{f as a}from"./fetch-helper-BtfXRwL4.js";const r=async()=>a("/api/academic-years",{method:"GET"}),s=async({data:e})=>a("/api/academic-years/create",{body:e}),t=async({data:e})=>a("/api/academic-years/set-active",{body:e}),n=async({data:e})=>a("/api/academic-years/delete",{body:e});export{s as c,n as d,r as g,t as s};

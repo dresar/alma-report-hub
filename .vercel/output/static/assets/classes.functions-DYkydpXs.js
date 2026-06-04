@@ -1,0 +1,1 @@
+import{f as s}from"./fetch-helper-BtfXRwL4.js";const t=async()=>s("/api/classes",{method:"GET"}),n=async({data:e})=>s("/api/rombels",{body:e}),o=async({data:e})=>s("/api/rombels/create",{body:e}),r=async({data:e})=>s("/api/rombels/delete",{body:e});export{n as a,o as c,r as d,t as g};
