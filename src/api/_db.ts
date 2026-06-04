@@ -7,17 +7,18 @@ import postgres from "postgres";
 import jwt from "jsonwebtoken";
 
 // ── Database ─────────────────────────────────────────────────────────
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL environment variable is not set");
-}
 
 // Singleton pattern — reuse across warm invocations on Vercel
 let _sql: ReturnType<typeof postgres> | undefined;
 
 export function getDb() {
   if (!_sql) {
-    _sql = postgres(databaseUrl!, {
+    const databaseUrl = process.env.DATABASE_URL;
+    if (!databaseUrl) {
+      throw new Error("DATABASE_URL environment variable is not set");
+    }
+
+    _sql = postgres(databaseUrl, {
       ssl: "require",
       max: 5,
       idle_timeout: 20,
