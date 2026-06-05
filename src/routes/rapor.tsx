@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, Search, FileDown } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList,
+  PieChart, Pie, Cell, Legend, Tooltip,
 } from "recharts";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -532,6 +533,7 @@ function RaporSheet({
   // Build bar chart data for speech
   const speechChartData = speechScores.map((s: any) => ({
     lang: s.language + " Speech",
+    name: s.language + " Speech",
     value: Number(s.final_score ?? 0),
   }));
 
@@ -539,6 +541,7 @@ function RaporSheet({
   const computerAspectOrder = ["pengoperasian", "ms_word", "ms_excel", "internet", "presentasi"];
   const computerChartData = computerAspectOrder.map((key) => ({
     aspect: computerLabels[key] ?? key,
+    name: computerLabels[key] ?? key,
     value: computerScore ? Number(computerScore[key] ?? 0) : 0,
   }));
 
@@ -546,6 +549,7 @@ function RaporSheet({
   const discussionAspectOrder = ["keaktifan", "argumentasi", "kerjasama", "penguasaan", "etika"];
   const discussionChartData = discussionAspectOrder.map((key) => ({
     aspect: discussionLabels[key] ?? key,
+    name: discussionLabels[key] ?? key,
     value: discussionScore ? Number(discussionScore[key] ?? 0) : 0,
   }));
 
@@ -703,19 +707,65 @@ function RaporSheet({
           speechScores.length > 0 && (
             <div className="mt-2 px-6 relative">
               <div style={{ width: "100%", height: 160 }}>
-                <ResponsiveContainer>
-                  <BarChart
-                    data={speechChartData}
-                    layout="vertical"
-                    margin={{ left: 100, right: 30, top: 10, bottom: 10 }}
-                  >
-                    <XAxis type="number" domain={[0, 9]} tickCount={10} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#666" }} />
-                    <YAxis dataKey="lang" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#333", fontStyle: "italic" }} width={120} />
-                    <Bar dataKey="value" fill="#4f81bd" barSize={12}>
-                      <LabelList dataKey="value" position="right" style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }} formatter={(val: number) => val.toFixed(0)} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                {classLevel >= 4 ? (
+                  <ResponsiveContainer>
+                    <PieChart>
+                      <Pie
+                        data={speechScores.map((s: any) => ({
+                          name: s.language + " Speech",
+                          value: Number(s.final_score ?? 0),
+                        }))}
+                        cx="40%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, value }: any) => {
+                          if (!value) return null;
+                          const RADIAN = Math.PI / 180;
+                          const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                          return (
+                            <g>
+                              <rect x={x - 14} y={y - 10} width={28} height={20} rx={3} fill="#333" />
+                              <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" style={{ fontSize: "9px", fontWeight: "bold" }}>
+                                {value.toFixed(0)}
+                              </text>
+                            </g>
+                          );
+                        }}
+                        outerRadius={70}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {speechScores.map((_: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={["#4f81bd", "#c0504d", "#9bbb59"][index % 3]} />
+                        ))}
+                      </Pie>
+                      <Legend
+                        layout="vertical"
+                        align="right"
+                        verticalAlign="middle"
+                        iconType="square"
+                        iconSize={8}
+                        wrapperStyle={{ fontSize: "9.5pt", fontFamily: 'serif', paddingLeft: "10px" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <ResponsiveContainer>
+                    <BarChart
+                      data={speechChartData}
+                      layout="vertical"
+                      margin={{ left: 100, right: 30, top: 10, bottom: 10 }}
+                    >
+                      <XAxis type="number" domain={[0, 9]} tickCount={10} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#666" }} />
+                      <YAxis dataKey="lang" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#333", fontStyle: "italic" }} width={120} />
+                      <Bar dataKey="value" fill="#4f81bd" barSize={12}>
+                        <LabelList dataKey="value" position="right" style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }} formatter={(val: number) => val.toFixed(0)} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
               {/* Detail aspek pidato */}
               <table className="w-full border-collapse text-[9.5pt] mt-2">
@@ -758,10 +808,9 @@ function RaporSheet({
             <BlangkoSkillBarTable labels={Object.values(computerLabels)} />
           ) : (
             computerScore ? (
-              <SkillBarSection
+              <SkillPieSection
                 data={computerChartData}
                 score={computerScore.final_score}
-                domain={[0, 100]}
               />
             ) : (
               <p className="text-[10pt] italic text-gray-400 mt-2 px-2">
@@ -780,10 +829,9 @@ function RaporSheet({
             <BlangkoSkillBarTable labels={Object.values(discussionLabels)} />
           ) : (
             discussionScore ? (
-              <SkillBarSection
+              <SkillPieSection
                 data={discussionChartData}
                 score={discussionScore.final_score}
-                domain={[0, 100]}
               />
             ) : (
               <p className="text-[10pt] italic text-gray-400 mt-2 px-2">
@@ -840,52 +888,80 @@ function RaporSheet({
   );
 }
 
-// ── Skill bar chart section untuk rapor berisi nilai ──────────────────
-function SkillBarSection({
-  data, score, domain = [0, 100],
+// ── Skill pie chart section untuk rapor berisi nilai (Kelas 4 & 5) ─────
+function SkillPieSection({
+  data, score,
 }: {
-  data: { aspect: string; value: number }[];
+  data: { name: string; value: number }[];
   score: number | null;
-  domain?: [number, number];
 }) {
+  const COLORS = ["#4f81bd", "#c0504d", "#9bbb59", "#8064a2", "#4bacc6", "#f79646", "#3b82f6", "#10b981", "#f59e0b"];
+
+  const RADIAN = Math.PI / 180;
+  const renderCustomizedLabel = ({
+    cx, cy, midAngle, innerRadius, outerRadius, value
+  }: any) => {
+    if (!value) return null;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return (
+      <g>
+        <rect
+          x={x - 14}
+          y={y - 10}
+          width={28}
+          height={20}
+          rx={3}
+          fill="#333"
+        />
+        <text
+          x={x}
+          y={y}
+          fill="white"
+          textAnchor="middle"
+          dominantBaseline="central"
+          style={{ fontSize: "9px", fontWeight: "bold" }}
+        >
+          {value.toFixed(0)}
+        </text>
+      </g>
+    );
+  };
+
   return (
-    <div className="mt-2 px-6">
-      <div style={{ width: "100%", height: 160 }}>
+    <div className="mt-2 px-6 flex items-center justify-center">
+      <div style={{ width: "100%", height: 180 }} className="flex justify-center items-center">
         <ResponsiveContainer>
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ left: 130, right: 40, top: 8, bottom: 8 }}
-          >
-            <XAxis
-              type="number"
-              domain={domain}
-              tickCount={11}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 9, fill: "#888" }}
+          <PieChart>
+            <Pie
+              data={data}
+              cx="40%"
+              cy="50%"
+              labelLine={false}
+              label={renderCustomizedLabel}
+              outerRadius={75}
+              fill="#8884d8"
+              dataKey="value"
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Legend
+              layout="vertical"
+              align="right"
+              verticalAlign="middle"
+              iconType="square"
+              iconSize={8}
+              wrapperStyle={{ fontSize: "9pt", fontFamily: 'serif', paddingLeft: "10px" }}
             />
-            <YAxis
-              dataKey="aspect"
-              type="category"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 10, fill: "#333", fontStyle: "italic" }}
-              width={150}
-            />
-            <Bar dataKey="value" fill="#70ad47" barSize={11}>
-              <LabelList
-                dataKey="value"
-                position="right"
-                style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }}
-                formatter={(val: number) => (val > 0 ? val.toFixed(0) : "—")}
-              />
-            </Bar>
-          </BarChart>
+          </PieChart>
         </ResponsiveContainer>
       </div>
       {score != null && (
-        <p className="text-right text-[10pt] font-semibold pr-4">
+        <p className="text-right text-[10pt] font-semibold pr-4 whitespace-nowrap self-end pb-2">
           Average Score: {Number(score).toFixed(1)}
         </p>
       )}
