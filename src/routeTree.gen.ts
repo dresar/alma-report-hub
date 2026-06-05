@@ -23,6 +23,7 @@ import { Route as AppAdminTahunAjaranRouteImport } from './routes/_app.admin.tah
 import { Route as AppAdminPenggunaRouteImport } from './routes/_app.admin.pengguna'
 import { Route as AppAdminMapelRouteImport } from './routes/_app.admin.mapel'
 import { Route as AppAdminKelasRouteImport } from './routes/_app.admin.kelas'
+import { Route as AppAdminAspekSkillRouteImport } from './routes/_app.admin.aspek-skill'
 
 const RaporRoute = RaporRouteImport.update({
   id: '/rapor',
@@ -93,6 +94,11 @@ const AppAdminKelasRoute = AppAdminKelasRouteImport.update({
   path: '/kelas',
   getParentRoute: () => AppAdminRoute,
 } as any)
+const AppAdminAspekSkillRoute = AppAdminAspekSkillRouteImport.update({
+  id: '/aspek-skill',
+  path: '/aspek-skill',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/profil': typeof AppProfilRoute
   '/santri': typeof AppSantriRoute
+  '/admin/aspek-skill': typeof AppAdminAspekSkillRoute
   '/admin/kelas': typeof AppAdminKelasRoute
   '/admin/mapel': typeof AppAdminMapelRoute
   '/admin/pengguna': typeof AppAdminPenggunaRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/profil': typeof AppProfilRoute
   '/santri': typeof AppSantriRoute
+  '/admin/aspek-skill': typeof AppAdminAspekSkillRoute
   '/admin/kelas': typeof AppAdminKelasRoute
   '/admin/mapel': typeof AppAdminMapelRoute
   '/admin/pengguna': typeof AppAdminPenggunaRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/profil': typeof AppProfilRoute
   '/_app/santri': typeof AppSantriRoute
+  '/_app/admin/aspek-skill': typeof AppAdminAspekSkillRoute
   '/_app/admin/kelas': typeof AppAdminKelasRoute
   '/_app/admin/mapel': typeof AppAdminMapelRoute
   '/_app/admin/pengguna': typeof AppAdminPenggunaRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/profil'
     | '/santri'
+    | '/admin/aspek-skill'
     | '/admin/kelas'
     | '/admin/mapel'
     | '/admin/pengguna'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/profil'
     | '/santri'
+    | '/admin/aspek-skill'
     | '/admin/kelas'
     | '/admin/mapel'
     | '/admin/pengguna'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/profil'
     | '/_app/santri'
+    | '/_app/admin/aspek-skill'
     | '/_app/admin/kelas'
     | '/_app/admin/mapel'
     | '/_app/admin/pengguna'
@@ -294,10 +306,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminKelasRouteImport
       parentRoute: typeof AppAdminRoute
     }
+    '/_app/admin/aspek-skill': {
+      id: '/_app/admin/aspek-skill'
+      path: '/aspek-skill'
+      fullPath: '/admin/aspek-skill'
+      preLoaderRoute: typeof AppAdminAspekSkillRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
   }
 }
 
 interface AppAdminRouteChildren {
+  AppAdminAspekSkillRoute: typeof AppAdminAspekSkillRoute
   AppAdminKelasRoute: typeof AppAdminKelasRoute
   AppAdminMapelRoute: typeof AppAdminMapelRoute
   AppAdminPenggunaRoute: typeof AppAdminPenggunaRoute
@@ -306,6 +326,7 @@ interface AppAdminRouteChildren {
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminAspekSkillRoute: AppAdminAspekSkillRoute,
   AppAdminKelasRoute: AppAdminKelasRoute,
   AppAdminMapelRoute: AppAdminMapelRoute,
   AppAdminPenggunaRoute: AppAdminPenggunaRoute,

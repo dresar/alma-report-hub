@@ -13,16 +13,14 @@ let _sql: ReturnType<typeof postgres> | undefined;
 export function getDb() {
   if (!_sql) {
     const databaseUrl = process.env.DATABASE_URL;
+    console.log("[getDb] DATABASE_URL raw value:", databaseUrl ? `${databaseUrl.slice(0, 30)}...` : "undefined/falsy");
     if (!databaseUrl) {
       throw new Error("DATABASE_URL environment variable is not set");
     }
 
     _sql = postgres(databaseUrl, {
       ssl: "require",
-      max: 5,
-      idle_timeout: 20,
       connect_timeout: 10,
-      onnotice: () => {},
     });
   }
   return _sql;

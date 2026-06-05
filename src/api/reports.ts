@@ -49,6 +49,18 @@ export const getReportCardFn = createServerFn()
       SELECT * FROM attendance WHERE student_id = ${data.studentId} AND academic_year_id = ${data.academicYearId} LIMIT 1
     `;
 
+    // Skill aspect configs (untuk label dinamis di rapor)
+    let skillAspects: unknown[] = [];
+    try {
+      skillAspects = await sql`
+        SELECT * FROM skill_aspect_configs
+        WHERE is_active = true
+        ORDER BY skill_type, sort_order
+      `;
+    } catch {
+      // Tabel belum ada (DB lama) — fallback ke empty, rapor akan pakai label default
+    }
+
     let ranking = null;
     if (place) {
       const rankRows = await sql`
@@ -76,9 +88,11 @@ export const getReportCardFn = createServerFn()
       computerScore: computerScore[0] ?? null,
       discussionScore: discussionScore[0] ?? null,
       attendance: attendance[0] ?? null,
+      skillAspects,
       ranking,
     };
   });
+
 
 // ── List students for report ────────────────────────────────────────────
 export const getReportStudentsFn = createServerFn()

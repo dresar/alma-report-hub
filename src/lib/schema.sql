@@ -172,6 +172,21 @@ CREATE TABLE IF NOT EXISTS attendance (
 );
 
 -- ─────────────────────────────────────────────────────────────
+-- 13. SKILL ASPECT CONFIGS (Konfigurasi Aspek Penilaian Skill)
+-- Admin dapat mengubah label aspek tanpa mengubah kode
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS skill_aspect_configs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  skill_type  TEXT NOT NULL CHECK (skill_type IN ('speech','computer','discussion')),
+  aspect_key  TEXT NOT NULL,   -- kolom di tabel skor, e.g. "penguasaan", "ms_word"
+  label_id    TEXT NOT NULL,   -- label Bahasa Indonesia
+  label_en    TEXT NOT NULL,   -- label Bahasa Inggris (untuk rapor)
+  sort_order  SMALLINT NOT NULL DEFAULT 0,
+  is_active   BOOLEAN NOT NULL DEFAULT true,
+  UNIQUE (skill_type, aspect_key)
+);
+
+-- ─────────────────────────────────────────────────────────────
 -- SEED DATA
 -- ─────────────────────────────────────────────────────────────
 
@@ -229,3 +244,25 @@ INSERT INTO subjects (name, class_level, sort_order) VALUES
   ('Al-Qur''an',      5, 1),
   ('Bahasa Arab',     5, 2)
 ON CONFLICT (name, class_level) DO NOTHING;
+
+-- Aspek Penilaian Skill default
+INSERT INTO skill_aspect_configs (skill_type, aspect_key, label_id, label_en, sort_order) VALUES
+  -- Pidato 3 Bahasa
+  ('speech', 'penguasaan',   'Penguasaan Materi',  'Content Mastery',       1),
+  ('speech', 'kelancaran',   'Kelancaran',          'Fluency',               2),
+  ('speech', 'intonasi',     'Intonasi',            'Intonation',            3),
+  ('speech', 'kepercayaan',  'Kepercayaan Diri',    'Self Confidence',       4),
+  ('speech', 'penampilan',   'Penampilan',          'Appearance',            5),
+  -- Praktik Komputer (Kelas 4 & 5)
+  ('computer', 'pengoperasian', 'Pengoperasian Dasar', 'Basic Operation',    1),
+  ('computer', 'ms_word',       'Microsoft Word',      'Microsoft Word',     2),
+  ('computer', 'ms_excel',      'Microsoft Excel',     'Microsoft Excel',    3),
+  ('computer', 'internet',      'Internet',            'Internet',           4),
+  ('computer', 'presentasi',    'Presentasi',          'Presentation',       5),
+  -- Diskusi (Kelas 4 & 5)
+  ('discussion', 'keaktifan',   'Keaktifan',           'Participation',      1),
+  ('discussion', 'argumentasi', 'Argumentasi',         'Argumentation',      2),
+  ('discussion', 'kerjasama',   'Kerjasama',           'Teamwork',           3),
+  ('discussion', 'penguasaan',  'Penguasaan Materi',   'Content Mastery',   4),
+  ('discussion', 'etika',       'Etika Diskusi',       'Discussion Ethics',  5)
+ON CONFLICT (skill_type, aspect_key) DO NOTHING;

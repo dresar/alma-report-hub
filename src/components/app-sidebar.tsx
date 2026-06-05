@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, ClipboardList, FileText, GraduationCap, Settings, Calendar, BookOpen } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, FileText, GraduationCap, Settings, Calendar, BookOpen, SlidersHorizontal } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
   SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -17,6 +17,7 @@ const adminItems = [
   { title: "Tahun Ajaran", url: "/admin/tahun-ajaran", icon: Calendar },
   { title: "Kelas & Rombel", url: "/admin/kelas", icon: GraduationCap },
   { title: "Mata Pelajaran", url: "/admin/mapel", icon: BookOpen },
+  { title: "Aspek Skill", url: "/admin/aspek-skill", icon: SlidersHorizontal },
   { title: "Pengguna", url: "/admin/pengguna", icon: Users },
 ];
 

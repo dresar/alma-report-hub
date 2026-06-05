@@ -25,6 +25,7 @@ import {
   saveDiscussionScoresFn,
   saveAttendanceFn,
 } from "@/lib/api/scores.functions";
+import { getSkillAspectsFn } from "@/lib/api/skill-aspects.functions";
 
 export const Route = createFileRoute("/_app/nilai/$studentId")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -39,20 +40,49 @@ export const Route = createFileRoute("/_app/nilai/$studentId")({
 
 const LANGUAGES = ["Indonesia", "Arab", "Inggris"] as const;
 const SPEECH_ASPECTS = ["penguasaan", "kelancaran", "intonasi", "kepercayaan", "penampilan"] as const;
-const SPEECH_LABELS: Record<string, string> = {
+const COMPUTER_ASPECTS = ["pengoperasian", "msWord", "msExcel", "internet", "presentasi"] as const;
+// Map antara key input state dan kolom DB (untuk komputer)
+const COMPUTER_KEY_TO_DB: Record<string, string> = {
+  pengoperasian: "pengoperasian", msWord: "ms_word", msExcel: "ms_excel",
+  internet: "internet", presentasi: "presentasi",
+};
+const DISCUSSION_ASPECTS = ["keaktifan", "argumentasi", "kerjasama", "penguasaan", "etika"] as const;
+
+// Default labels (fallback jika DB belum punya konfigurasi)
+const DEFAULT_SPEECH_LABELS: Record<string, string> = {
   penguasaan: "Penguasaan Materi", kelancaran: "Kelancaran",
   intonasi: "Intonasi", kepercayaan: "Kepercayaan Diri", penampilan: "Penampilan",
 };
-const COMPUTER_ASPECTS = ["pengoperasian", "msWord", "msExcel", "internet", "presentasi"] as const;
-const COMPUTER_LABELS: Record<string, string> = {
+const DEFAULT_COMPUTER_LABELS: Record<string, string> = {
   pengoperasian: "Pengoperasian Dasar", msWord: "Microsoft Word",
   msExcel: "Microsoft Excel", internet: "Internet", presentasi: "Presentasi",
 };
-const DISCUSSION_ASPECTS = ["keaktifan", "argumentasi", "kerjasama", "penguasaan", "etika"] as const;
-const DISCUSSION_LABELS: Record<string, string> = {
+const DEFAULT_DISCUSSION_LABELS: Record<string, string> = {
   keaktifan: "Keaktifan", argumentasi: "Argumentasi", kerjasama: "Kerjasama",
   penguasaan: "Penguasaan Materi", etika: "Etika Diskusi",
 };
+
+/** Bangun label map dari skill_aspect_configs, fallback ke default jika kosong */
+function buildLabelMap(
+  aspects: Array<{ skill_type: string; aspect_key: string; label_id: string }>,
+  skillType: string,
+  fallback: Record<string, string>,
+  keyMapping?: Record<string, string> // map dari input key ke DB key
+): Record<string, string> {
+  const filtered = aspects.filter((a) => a.skill_type === skillType);
+  if (filtered.length === 0) return fallback;
+  const map: Record<string, string> = {};
+  // Untuk komputer: key di state bisa berbeda dengan key di DB
+  if (keyMapping) {
+    for (const [stateKey, dbKey] of Object.entries(keyMapping)) {
+      const found = filtered.find((a) => a.aspect_key === dbKey);
+      map[stateKey] = found?.label_id ?? fallback[stateKey] ?? stateKey;
+    }
+  } else {
+    for (const a of filtered) map[a.aspect_key] = a.label_id;
+  }
+  return map;
+}
 
 function ScoreInput({ value, onChange, id }: { value: string; onChange: (v: string) => void; id: string; }) {
   return (
@@ -120,8 +150,18 @@ function NilaiStudentPage() {
   const { data: discData } = useQuery({
     queryKey: ["discussion-scores", yearId, rombelId],
     queryFn: () => getDiscussionScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
-    enabled: !!token && !!yearId && !!rombelId && classLevel >= 5,
+    enabled: !!token && !!yearId && !!rombelId && classLevel >= 4,  // Kelas 4 & 5
   });
+  // Skill aspect configs (untuk label dinamis)
+  const { data: skillAspects = [] } = useQuery({
+    queryKey: ["skill-aspects"],
+    queryFn: () => getSkillAspectsFn(),
+    enabled: !!token,
+    staleTime: 1000 * 60 * 10,
+  });
+  const speechLabels = buildLabelMap(skillAspects as any[], "speech", DEFAULT_SPEECH_LABELS);
+  const computerLabels = buildLabelMap(skillAspects as any[], "computer", DEFAULT_COMPUTER_LABELS, COMPUTER_KEY_TO_DB);
+  const discussionLabels = buildLabelMap(skillAspects as any[], "discussion", DEFAULT_DISCUSSION_LABELS);
   const { data: attData } = useQuery({
     queryKey: ["attendance", yearId, rombelId],
     queryFn: () => getAttendanceFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
@@ -354,7 +394,7 @@ function NilaiStudentPage() {
           <TabsTrigger value="akademik">Nilai Akademik</TabsTrigger>
           <TabsTrigger value="pidato">Pidato 3 Bahasa</TabsTrigger>
           {classLevel >= 4 && <TabsTrigger value="komputer">Praktik Komputer</TabsTrigger>}
-          {classLevel >= 5 && <TabsTrigger value="diskusi">Diskusi</TabsTrigger>}
+          {classLevel >= 4 && <TabsTrigger value="diskusi">Diskusi</TabsTrigger>}
           <TabsTrigger value="kehadiran">Kehadiran</TabsTrigger>
         </TabsList>
 
@@ -432,7 +472,7 @@ function NilaiStudentPage() {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       {SPEECH_ASPECTS.map((asp) => (
                         <div key={asp} className="space-y-1 text-center">
-                          <Label className="text-xs">{SPEECH_LABELS[asp]}</Label>
+                          <Label className="text-xs">{speechLabels[asp] ?? asp}</Label>
                           <ScoreInput
                             id={`speech-${lang}-${asp}`}
                             value={row[asp] ?? ""}
@@ -461,7 +501,7 @@ function NilaiStudentPage() {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {COMPUTER_ASPECTS.map((asp) => (
                     <div key={asp} className="space-y-1 text-center">
-                      <Label className="text-xs">{COMPUTER_LABELS[asp]}</Label>
+                      <Label className="text-xs">{computerLabels[asp] ?? asp}</Label>
                       <ScoreInput
                         id={`comp-${asp}`}
                         value={compState[asp] ?? ""}
@@ -480,7 +520,7 @@ function NilaiStudentPage() {
           </TabsContent>
         )}
 
-        {classLevel >= 5 && (
+        {classLevel >= 4 && (
           <TabsContent value="diskusi" className="mt-4">
             <Card className="shadow-none">
               <CardHeader><CardTitle className="text-sm">Nilai Diskusi</CardTitle></CardHeader>
@@ -488,7 +528,7 @@ function NilaiStudentPage() {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   {DISCUSSION_ASPECTS.map((asp) => (
                     <div key={asp} className="space-y-1 text-center">
-                      <Label className="text-xs">{DISCUSSION_LABELS[asp]}</Label>
+                      <Label className="text-xs">{discussionLabels[asp] ?? asp}</Label>
                       <ScoreInput
                         id={`disc-${asp}`}
                         value={discState[asp] ?? ""}
