@@ -34,7 +34,8 @@ export const saveSubjectScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; subjectId: string; tugas?: number | null; uts?: number | null; uas?: number | null }>;
+    // "ujian" adalah gabungan UTS+UAS — disimpan ke kolom uts, uas selalu null
+    scores: Array<{ studentId: string; subjectId: string; tugas?: number | null; ujian?: number | null }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
@@ -44,15 +45,15 @@ export const saveSubjectScoresFn = createServerFn()
       if (subj.length === 0) continue;
       const { bobot_tugas: bt, bobot_uts: bu, bobot_uas: buas } = subj[0];
       const tugasVal = score.tugas ?? 0;
-      const utsVal = score.uts ?? 0;
-      const uasVal = score.uas ?? 0;
-      const finalScore = Math.round((tugasVal * Number(bt) + utsVal * Number(bu) + uasVal * Number(buas)) * 10) / 10;
+      // ujian menggantikan UTS+UAS — bobotnya adalah gabungan keduanya
+      const ujianVal = score.ujian ?? 0;
+      const bobotUjian = Number(bu) + Number(buas);
+      const finalScore = Math.round((tugasVal * Number(bt) + ujianVal * bobotUjian) * 10) / 10;
       const tugas = score.tugas ?? null;
-      const uts = score.uts ?? null;
-      const uas = score.uas ?? null;
+      const ujian = score.ujian ?? null; // disimpan ke kolom uts
       await sql`
         INSERT INTO subject_scores (student_id, subject_id, academic_year_id, tugas, uts, uas, final_score, updated_at)
-        VALUES (${score.studentId}, ${score.subjectId}, ${data.academicYearId}, ${tugas}, ${uts}, ${uas}, ${finalScore}, now())
+        VALUES (${score.studentId}, ${score.subjectId}, ${data.academicYearId}, ${tugas}, ${ujian}, ${null}, ${finalScore}, now())
         ON CONFLICT (student_id, subject_id, academic_year_id) DO UPDATE
           SET tugas = EXCLUDED.tugas, uts = EXCLUDED.uts, uas = EXCLUDED.uas,
               final_score = EXCLUDED.final_score, updated_at = now()

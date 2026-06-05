@@ -150,7 +150,7 @@ function NilaiStudentPage() {
   const { data: discData } = useQuery({
     queryKey: ["discussion-scores", yearId, rombelId],
     queryFn: () => getDiscussionScoresFn({ data: { token: token!, academicYearId: yearId, rombelId } }),
-    enabled: !!token && !!yearId && !!rombelId && classLevel >= 4,  // Kelas 4 & 5
+    enabled: !!token && !!yearId && !!rombelId && classLevel >= 5,  // Diskusi hanya Kelas 5
   });
   // Skill aspect configs (untuk label dinamis)
   const { data: skillAspects = [] } = useQuery({
@@ -181,8 +181,8 @@ function NilaiStudentPage() {
     for (const subj of akademikData.subjects) {
       const existing = akademikData.scores.find((s: any) => s.student_id === studentId && s.subject_id === subj.id);
       init[`${subj.id}_tugas`] = existing?.tugas != null ? String(existing.tugas) : "";
-      init[`${subj.id}_uts`] = existing?.uts != null ? String(existing.uts) : "";
-      init[`${subj.id}_uas`] = existing?.uas != null ? String(existing.uas) : "";
+      // ujian = gabungan UTS+UAS, nilai lama diambil dari kolom uts
+      init[`${subj.id}_ujian`] = existing?.uts != null ? String(existing.uts) : "";
     }
     setAkademikState(init);
   }, [akademikData, studentId]);
@@ -241,8 +241,8 @@ function NilaiStudentPage() {
       const scores = (akademikData?.subjects ?? []).map((subj: any) => ({
         studentId, subjectId: subj.id,
         tugas: akademikState[`${subj.id}_tugas`] !== "" ? Number(akademikState[`${subj.id}_tugas`]) : null,
-        uts: akademikState[`${subj.id}_uts`] !== "" ? Number(akademikState[`${subj.id}_uts`]) : null,
-        uas: akademikState[`${subj.id}_uas`] !== "" ? Number(akademikState[`${subj.id}_uas`]) : null,
+        // ujian menggantikan UTS+UAS
+        ujian: akademikState[`${subj.id}_ujian`] !== "" ? Number(akademikState[`${subj.id}_ujian`]) : null,
       }));
       return saveSubjectScoresFn({ data: { token: token!, academicYearId: yearId, scores } });
     },
@@ -394,7 +394,7 @@ function NilaiStudentPage() {
           <TabsTrigger value="akademik">Nilai Akademik</TabsTrigger>
           <TabsTrigger value="pidato">Pidato 3 Bahasa</TabsTrigger>
           {classLevel >= 4 && <TabsTrigger value="komputer">Praktik Komputer</TabsTrigger>}
-          {classLevel >= 4 && <TabsTrigger value="diskusi">Diskusi</TabsTrigger>}
+          {classLevel >= 5 && <TabsTrigger value="diskusi">Diskusi</TabsTrigger>}
           <TabsTrigger value="kehadiran">Kehadiran</TabsTrigger>
         </TabsList>
 
@@ -408,8 +408,7 @@ function NilaiStudentPage() {
                     <TableRow>
                       <TableHead>Mata Pelajaran</TableHead>
                       <TableHead className="text-center">Tugas</TableHead>
-                      <TableHead className="text-center">UTS</TableHead>
-                      <TableHead className="text-center">UAS</TableHead>
+                      <TableHead className="text-center">Ujian</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -418,7 +417,7 @@ function NilaiStudentPage() {
                         <TableCell className="font-medium">
                           {subj.name}
                           <div className="text-[10px] text-muted-foreground font-normal">
-                            Bobot: T:{Math.round(Number(subj.bobot_tugas)*100)}% U:{Math.round(Number(subj.bobot_uts)*100)}% A:{Math.round(Number(subj.bobot_uas)*100)}%
+                            Bobot: T:{Math.round(Number(subj.bobot_tugas)*100)}% U:{Math.round((Number(subj.bobot_uts)+Number(subj.bobot_uas))*100)}%
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
@@ -430,16 +429,9 @@ function NilaiStudentPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <ScoreInput
-                            id={`${subj.id}-uts`}
-                            value={akademikState[`${subj.id}_uts`] ?? ""}
-                            onChange={(v) => { markDirty(); setAkademikState(p => ({ ...p, [`${subj.id}_uts`]: v })); }}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <ScoreInput
-                            id={`${subj.id}-uas`}
-                            value={akademikState[`${subj.id}_uas`] ?? ""}
-                            onChange={(v) => { markDirty(); setAkademikState(p => ({ ...p, [`${subj.id}_uas`]: v })); }}
+                            id={`${subj.id}-ujian`}
+                            value={akademikState[`${subj.id}_ujian`] ?? ""}
+                            onChange={(v) => { markDirty(); setAkademikState(p => ({ ...p, [`${subj.id}_ujian`]: v })); }}
                           />
                         </TableCell>
                       </TableRow>
@@ -520,7 +512,7 @@ function NilaiStudentPage() {
           </TabsContent>
         )}
 
-        {classLevel >= 4 && (
+        {classLevel >= 5 && (
           <TabsContent value="diskusi" className="mt-4">
             <Card className="shadow-none">
               <CardHeader><CardTitle className="text-sm">Nilai Diskusi</CardTitle></CardHeader>

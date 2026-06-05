@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Printer, ArrowLeft, Search, FileDown } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList,
-  PieChart, Pie, Cell, Legend, Tooltip,
 } from "recharts";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -281,12 +280,23 @@ function Rapor() {
 
   const classLevel = (reportCard as any)?.placement?.class_level ?? 0;
 
+  // Semester label dari DB (1 = First, 2 = Second)
+  const semesterNum = (reportCard as any)?.academicYear?.semester ?? 1;
+  const SEMESTER_EN: Record<number, string> = {
+    1: "First Semester (Ula)",
+    2: "Second Semester (Tsaniyah)",
+  };
+  const semesterLabel = SEMESTER_EN[semesterNum] ?? "First Semester (Ula)";
+
   // ── Section rendering helpers ─────────────────────────────────────────
 
   // Determine section letters dynamically based on class level
   const getSectionLetters = (level: number): Record<string, string> => {
-    // A = Academic (all), B = Speech (all), C = Computer (4+), D = Discussion (4+), E = Attendance
-    if (level >= 4) return { academic: "A", speech: "B", computer: "C", discussion: "D", attendance: "E" };
+    // A = Academic (all), B = Speech (all)
+    // Kelas 4: + Computer (C), Attendance (D)
+    // Kelas 5: + Computer (C), Discussion (D), Attendance (E)
+    if (level >= 5) return { academic: "A", speech: "B", computer: "C", discussion: "D", attendance: "E" };
+    if (level === 4) return { academic: "A", speech: "B", computer: "C", attendance: "D" };
     return { academic: "A", speech: "B", attendance: "C" };
   };
   const sections = getSectionLetters(classLevel);
@@ -495,6 +505,7 @@ function Rapor() {
             signatureImage={signatureImage}
             showSignature={showSignature}
             numberToWords={numberToWords}
+            semesterLabel={semesterLabel}
             id="rapor-print-area"
           />
         </div>
@@ -529,6 +540,7 @@ function Rapor() {
                   signatureImage={signatureImage}
                   showSignature={showSignature}
                   numberToWords={numberToWords}
+                  semesterLabel={semesterLabel}
                   reportCard={null}
                 />
               ))
@@ -549,6 +561,7 @@ function Rapor() {
                 signatureImage={signatureImage}
                 showSignature={showSignature}
                 numberToWords={numberToWords}
+                semesterLabel={SEMESTER_EN[rc.academicYear?.semester ?? 1] ?? semesterLabel}
               />
             ))
           )}
@@ -572,6 +585,7 @@ interface RaporSheetProps {
   signatureImage: string;
   showSignature: boolean;
   numberToWords: (n: number) => string;
+  semesterLabel?: string;  // e.g. "First Semester" atau "Second Semester"
   isBlangko?: boolean;
   blangkoStudent?: any;
   blangkoSubjects?: any[];
@@ -580,6 +594,7 @@ interface RaporSheetProps {
 function RaporSheet({
   id, reportCard, classLevel, sections, speechLabels, computerLabels, discussionLabels,
   printDate, headmasterName, signatureImage, showSignature, numberToWords,
+  semesterLabel = "First Semester",
   isBlangko = false, blangkoStudent, blangkoSubjects,
 }: RaporSheetProps) {
   const student = isBlangko ? blangkoStudent : reportCard?.student;
@@ -591,7 +606,7 @@ function RaporSheet({
   const academicYear = isBlangko ? null : reportCard?.academicYear;
 
   const showComputer = classLevel >= 4;
-  const showDiscussion = classLevel >= 4;
+  const showDiscussion = classLevel >= 5;  // Diskusi hanya Kelas 5
 
   // Build bar chart data for speech
   const speechChartData = speechScores.map((s: any) => ({
@@ -635,7 +650,7 @@ function RaporSheet({
 
       <div className="flex justify-between items-end mb-4 font-bold italic text-[11pt]">
         <div>Academic Year &nbsp;: &nbsp;&nbsp;&nbsp;{academicYear?.year || "2025/2026"}</div>
-        <div className="mr-8">Semester &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: &nbsp;&nbsp;&nbsp;First</div>
+        <div className="mr-8">Semester &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: &nbsp;&nbsp;&nbsp;{semesterLabel}</div>
       </div>
 
       <table className="w-full text-[11.5pt] mb-6 border-collapse font-serif">
@@ -775,65 +790,20 @@ function RaporSheet({
           speechScores.length > 0 && (
             <div className="mt-2 px-6 relative">
               <div style={{ width: "100%", height: 160 }}>
-                {classLevel >= 4 ? (
-                  <ResponsiveContainer>
-                    <PieChart>
-                      <Pie
-                        data={speechScores.map((s: any) => ({
-                          name: s.language + " Speech",
-                          value: Number(s.final_score ?? 0),
-                        }))}
-                        cx="40%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ cx, cy, midAngle, innerRadius, outerRadius, value }: any) => {
-                          if (!value) return null;
-                          const RADIAN = Math.PI / 180;
-                          const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
-                          const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                          const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                          return (
-                            <g>
-                              <rect x={x - 14} y={y - 10} width={28} height={20} rx={3} fill="#333" />
-                              <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" style={{ fontSize: "9px", fontWeight: "bold" }}>
-                                {value.toFixed(0)}
-                              </text>
-                            </g>
-                          );
-                        }}
-                        outerRadius={70}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {speechScores.map((_: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={["#4f81bd", "#c0504d", "#9bbb59"][index % 3]} />
-                        ))}
-                      </Pie>
-                      <Legend
-                        layout="vertical"
-                        align="right"
-                        verticalAlign="middle"
-                        iconType="square"
-                        iconSize={8}
-                        wrapperStyle={{ fontSize: "9.5pt", fontFamily: 'serif', paddingLeft: "10px" }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <ResponsiveContainer>
-                    <BarChart
-                      data={speechChartData}
-                      layout="vertical"
-                      margin={{ left: 100, right: 30, top: 10, bottom: 10 }}
-                    >
-                      <XAxis type="number" domain={[0, 9]} tickCount={10} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#666" }} />
-                      <YAxis dataKey="lang" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#333", fontStyle: "italic" }} width={120} />
-                      <Bar dataKey="value" fill="#4f81bd" barSize={12}>
-                        <LabelList dataKey="value" position="right" style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }} formatter={(val: number) => val.toFixed(0)} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                {/* Selalu Bar Chart untuk semua kelas (1-5) */}
+                <ResponsiveContainer>
+                  <BarChart
+                    data={speechChartData}
+                    layout="vertical"
+                    margin={{ left: 100, right: 30, top: 10, bottom: 10 }}
+                  >
+                    <XAxis type="number" domain={[0, 100]} tickCount={6} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#666" }} />
+                    <YAxis dataKey="lang" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#333", fontStyle: "italic" }} width={120} />
+                    <Bar dataKey="value" fill="#4f81bd" barSize={18}>
+                      <LabelList dataKey="value" position="right" style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }} formatter={(val: number) => val ? val.toFixed(1) : "—"} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
               {/* Detail aspek pidato */}
               <table className="w-full border-collapse text-[9.5pt] mt-2">
@@ -867,13 +837,8 @@ function RaporSheet({
           )
         )}
       </div>
-      </div>
 
-      {/* PAGE 2 */}
-      <div className="print-page print-area bg-white text-black border shadow-sm relative overflow-hidden" style={pageStyle}>
-        {renderHeaderInfo()}
-
-        {/* Section C — Computer (Kelas 4 & 5) */}
+      {/* Section C — Computer (Kelas 4 & 5) — di halaman 1, setelah Speech */}
       {showComputer && (
         <div className="mt-6">
           <SectionTitle>{sections.computer}. Computer Practical Skill</SectionTitle>
@@ -881,7 +846,7 @@ function RaporSheet({
             <BlangkoSkillBarTable labels={Object.values(computerLabels)} />
           ) : (
             computerScore ? (
-              <SkillPieSection
+              <SkillBarSection
                 data={computerChartData}
                 score={computerScore.final_score}
               />
@@ -894,7 +859,7 @@ function RaporSheet({
         </div>
       )}
 
-      {/* Section D — Discussion (Kelas 4 & 5) */}
+      {/* Section D — Discussion (Kelas 5) — di halaman 1, setelah Computer */}
       {showDiscussion && (
         <div className="mt-6">
           <SectionTitle>{sections.discussion}. Discussion Skill</SectionTitle>
@@ -902,7 +867,7 @@ function RaporSheet({
             <BlangkoSkillBarTable labels={Object.values(discussionLabels)} />
           ) : (
             discussionScore ? (
-              <SkillPieSection
+              <SkillBarSection
                 data={discussionChartData}
                 score={discussionScore.final_score}
               />
@@ -914,128 +879,102 @@ function RaporSheet({
           )}
         </div>
       )}
+      </div>
 
-      {/* Section — Attendance */}
-      <div className="mt-6">
-        <SectionTitle>{sections.attendance ?? sections.attendance ?? "C"}. Student Attendance Record</SectionTitle>
-        <table className="w-full border-collapse text-[10.5pt]">
-          <thead>
-            <tr className="bg-sky-100/50">
-              <Th w="8%">No</Th>
-              <Th align="center">Attendance Details</Th>
-              <Th w="35%" colSpan={2}>Values</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["School Days", attendance?.school_days ?? "—"],
-              ["Present Days", attendance?.present ?? "—"],
-              ["Permission Days", attendance?.permission ?? "—"],
-              ["Absent Days", attendance?.absent ?? "—"],
-            ].map(([label, val], i) => (
-              <tr key={String(label)}>
-                <Td center>{i + 1}</Td>
-                <Td>{String(label)}</Td>
-                <Td center className="border-r-0 w-[20%]">{String(val)}</Td>
-                <Td center className="border-l-0 text-left w-[15%]">Days</Td>
+      {/* PAGE 2 — Setelah kop langsung Attendance */}
+      <div className="print-page print-area bg-white text-black border shadow-sm relative overflow-hidden" style={pageStyle}>
+        {renderHeaderInfo()}
+
+        {/* Section Attendance — langsung setelah kop */}
+        <div className="mt-6">
+          <SectionTitle>{sections.attendance}. Student Attendance Record</SectionTitle>
+          <table className="w-full border-collapse text-[10.5pt]">
+            <thead>
+              <tr className="bg-sky-100/50">
+                <Th w="8%">No</Th>
+                <Th align="center">Attendance Details</Th>
+                <Th w="35%" colSpan={2}>Values</Th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Signature */}
-      <div className="mt-10 flex justify-end mr-4">
-        <div className="text-center text-[11pt]" style={{ minWidth: 280 }}>
-          <p>Mahato, {new Date(printDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
-          <p>Principal</p>
-          <div style={{ height: 80, position: "relative" }} className="flex justify-center items-center">
-            {showSignature && signatureImage && (
-              <img src={signatureImage} alt="Signature" style={{ maxHeight: "80px", maxWidth: "200px", objectFit: "contain" }} />
-            )}
-          </div>
-          <p className="font-bold">{headmasterName || "________________________"}</p>
+            </thead>
+            <tbody>
+              {[
+                ["School Days", attendance?.school_days ?? "—"],
+                ["Present Days", attendance?.present ?? "—"],
+                ["Permission Days", attendance?.permission ?? "—"],
+                ["Absent Days", attendance?.absent ?? "—"],
+              ].map(([label, val], i) => (
+                <tr key={String(label)}>
+                  <Td center>{i + 1}</Td>
+                  <Td>{String(label)}</Td>
+                  <Td center className="border-r-0 w-[20%]">{String(val)}</Td>
+                  <Td center className="border-l-0 text-left w-[15%]">Days</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+
+        {/* Signature */}
+        <div className="mt-10 flex justify-end mr-4">
+          <div className="text-center text-[11pt]" style={{ minWidth: 280 }}>
+            <p>Mahato, {new Date(printDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+            <p>Principal</p>
+            <div style={{ height: 80, position: "relative" }} className="flex justify-center items-center">
+              {showSignature && signatureImage && (
+                <img src={signatureImage} alt="Signature" style={{ maxHeight: "80px", maxWidth: "200px", objectFit: "contain" }} />
+              )}
+            </div>
+            <p className="font-bold">{headmasterName || "________________________"}</p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Skill pie chart section untuk rapor berisi nilai (Kelas 4 & 5) ─────
-function SkillPieSection({
+// ── Skill bar chart section untuk rapor berisi nilai (Kelas 4 & 5) ─────
+function SkillBarSection({
   data, score,
 }: {
   data: { name: string; value: number }[];
   score: number | null;
 }) {
-  const COLORS = ["#4f81bd", "#c0504d", "#9bbb59", "#8064a2", "#4bacc6", "#f79646", "#3b82f6", "#10b981", "#f59e0b"];
-
-  const RADIAN = Math.PI / 180;
-  const renderCustomizedLabel = ({
-    cx, cy, midAngle, innerRadius, outerRadius, value
-  }: any) => {
-    if (!value) return null;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    return (
-      <g>
-        <rect
-          x={x - 14}
-          y={y - 10}
-          width={28}
-          height={20}
-          rx={3}
-          fill="#333"
-        />
-        <text
-          x={x}
-          y={y}
-          fill="white"
-          textAnchor="middle"
-          dominantBaseline="central"
-          style={{ fontSize: "9px", fontWeight: "bold" }}
-        >
-          {value.toFixed(0)}
-        </text>
-      </g>
-    );
-  };
+  const COLORS = ["#4f81bd", "#c0504d", "#9bbb59", "#8064a2", "#4bacc6"];
 
   return (
-    <div className="mt-2 px-6 flex items-center justify-center">
-      <div style={{ width: "100%", height: 180 }} className="flex justify-center items-center">
+    <div className="mt-2 px-4">
+      <div style={{ width: "100%", height: 160 }}>
         <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={data}
-              cx="40%"
-              cy="50%"
-              labelLine={false}
-              label={renderCustomizedLabel}
-              outerRadius={75}
-              fill="#8884d8"
-              dataKey="value"
-            >
-              {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Legend
-              layout="vertical"
-              align="right"
-              verticalAlign="middle"
-              iconType="square"
-              iconSize={8}
-              wrapperStyle={{ fontSize: "9pt", fontFamily: 'serif', paddingLeft: "10px" }}
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ left: 100, right: 50, top: 5, bottom: 5 }}
+          >
+            <XAxis type="number" domain={[0, 100]} tickCount={6} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#666" }} />
+            <YAxis
+              dataKey="name"
+              type="category"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 9.5, fill: "#333" }}
+              width={110}
             />
-          </PieChart>
+            <Bar dataKey="value" barSize={13} radius={[0, 2, 2, 0]}>
+              {data.map((_, index) => (
+                <rect key={index} fill={COLORS[index % COLORS.length]} />
+              ))}
+              <LabelList
+                dataKey="value"
+                position="right"
+                style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }}
+                formatter={(val: number) => val ? val.toFixed(1) : "—"}
+              />
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
       </div>
       {score != null && (
-        <p className="text-right text-[10pt] font-semibold pr-4 whitespace-nowrap self-end pb-2">
+        <p className="text-right text-[10pt] font-semibold pr-4 whitespace-nowrap">
           Average Score: {Number(score).toFixed(1)}
         </p>
       )}

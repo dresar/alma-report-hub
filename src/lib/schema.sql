@@ -19,9 +19,11 @@ CREATE TABLE IF NOT EXISTS users (
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS academic_years (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  year        TEXT UNIQUE NOT NULL,   -- e.g. "2025/2026"
+  year        TEXT NOT NULL,              -- e.g. "2025/2026"
+  semester    SMALLINT NOT NULL DEFAULT 1 CHECK (semester IN (1, 2)), -- 1 = Ganjil/Ula, 2 = Genap/Tsaniyah
   is_active   BOOLEAN NOT NULL DEFAULT false,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (year, semester)
 );
 
 -- ─────────────────────────────────────────────────────────────
@@ -202,11 +204,13 @@ CROSS JOIN (VALUES ('A'),('B')) r(name)
 ON CONFLICT (class_id, name) DO NOTHING;
 
 -- Tahun ajaran
-INSERT INTO academic_years (year, is_active) VALUES
-  ('2023/2024', false),
-  ('2024/2025', false),
-  ('2025/2026', true)
-ON CONFLICT (year) DO NOTHING;
+INSERT INTO academic_years (year, semester, is_active) VALUES
+  ('2023/2024', 1, false),
+  ('2023/2024', 2, false),
+  ('2024/2025', 1, false),
+  ('2024/2025', 2, false),
+  ('2025/2026', 1, true)
+ON CONFLICT (year, semester) DO NOTHING;
 
 -- Admin default (password: admin123)
 INSERT INTO users (name, email, password_hash, role) VALUES
