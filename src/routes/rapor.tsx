@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { getReportCardFn } from "@/lib/api/report.functions";
 import { getAcademicYearsFn } from "@/lib/api/academic-years.functions";
 import { getStudentsForReportFn } from "@/lib/api/report.functions";
+import { getSubjectsFn } from "@/lib/api/subjects.functions";
 import { getRombelsFn } from "@/lib/api/classes.functions";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -20,11 +21,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from "@/components/ui/dialog";
 
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import * as htmlToImage from "html-to-image";
 import { toast } from "sonner";
 import { Settings as SettingsIcon } from "lucide-react";
 
@@ -74,6 +75,8 @@ function Rapor() {
   const [blangkoKelas, setBlangkoKelas] = useState("4");
   const [blangkoRombel, setBlangkoRombel] = useState("");
   const [blangkoPrinting, setBlangkoPrinting] = useState(false);
+  const [isBlangkoMode, setIsBlangkoMode] = useState(false); // Default false, will print actual filled report cards
+  const [batchReportCards, setBatchReportCards] = useState<any[]>([]);
 
   const { data: years } = useQuery({
     queryKey: ["academic-years"],
@@ -106,6 +109,12 @@ function Rapor() {
   const { data: rombelList } = useQuery({
     queryKey: ["rombels"],
     queryFn: () => getRombelsFn({ data: {} }),
+    enabled: !!token && blangkoOpen,
+  });
+
+  const { data: subjectList } = useQuery({
+    queryKey: ["subjects", blangkoKelas],
+    queryFn: () => getSubjectsFn({ data: { classLevel: Number(blangkoKelas) } }),
     enabled: !!token && blangkoOpen,
   });
 
@@ -164,12 +173,20 @@ function Rapor() {
     if (!el) return;
     toast.info("Sedang membuat PDF...", { id: "pdf-toast" });
     try {
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true });
-      const imgData = canvas.toDataURL("image/jpeg", 1.0);
       const pdf = new jsPDF("p", "mm", "a4");
+      const pages = el.querySelectorAll(".print-page");
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      
+      let firstPage = true;
+      for (let i = 0; i < pages.length; i++) {
+        const canvas = await htmlToImage.toCanvas(pages[i] as HTMLElement, { pixelRatio: 2 });
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        if (!firstPage) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+        firstPage = false;
+      }
+      
       pdf.save(`Rapor_${(reportCard as any)?.student?.full_name?.replace(/\s+/g, "_") || "Santri"}.pdf`);
       toast.success("PDF berhasil diunduh!", { id: "pdf-toast" });
     } catch (err) {
@@ -195,36 +212,54 @@ function Rapor() {
     }
 
     setBlangkoPrinting(true);
-    toast.info(`Membuat blangko untuk ${studentsInRombel.length} santri...`, { id: "blangko-toast" });
 
     try {
+      if (!isBlangkoMode) {
+        toast.info(`Mengambil data nilai untuk ${studentsInRombel.length} santri...`, { id: "blangko-toast" });
+        const results = await Promise.all(
+          studentsInRombel.map((s: any) =>
+            getReportCardFn({ data: { token: token!, studentId: s.id, academicYearId: yearId } })
+          )
+        );
+        setBatchReportCards(results);
+        // Wait for React to render the hidden elements
+        await new Promise((r) => setTimeout(r, 2000));
+      } else {
+        toast.info(`Membuat blangko untuk ${studentsInRombel.length} santri...`, { id: "blangko-toast" });
+      }
+
       const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
       let firstPage = true;
 
       for (const student of studentsInRombel) {
-        // Render blangko element
-        const blangkoEl = document.getElementById(`blangko-${student.id}`);
-        if (!blangkoEl) continue;
+        const elId = isBlangkoMode ? `blangko-${student.id}` : `batch-${student.id}`;
+        const targetEl = document.getElementById(elId);
+        if (!targetEl) continue;
 
-        const canvas = await html2canvas(blangkoEl, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        const pages = targetEl.querySelectorAll(".print-page");
+        for (let i = 0; i < pages.length; i++) {
+          const canvas = await htmlToImage.toCanvas(pages[i] as HTMLElement, { pixelRatio: 2 });
+          const imgData = canvas.toDataURL("image/jpeg", 0.95);
+          const pdfHeight = pdf.internal.pageSize.getHeight();
 
-        if (!firstPage) pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
-        firstPage = false;
+          if (!firstPage) pdf.addPage();
+          pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+          firstPage = false;
+        }
       }
 
       const rombelInfo = rombelList?.find((r: any) => r.id === blangkoRombel);
       const rombelLabel = rombelInfo ? `Kelas${rombelInfo.class_level}${rombelInfo.name}` : `Kelas${blangkoKelas}`;
-      pdf.save(`Blangko_Rapor_${rombelLabel}.pdf`);
-      toast.success("Blangko berhasil diunduh!", { id: "blangko-toast" });
+      const prefix = isBlangkoMode ? "Blangko_Rapor" : "Rapor";
+      pdf.save(`${prefix}_${rombelLabel}.pdf`);
+      toast.success(`${isBlangkoMode ? "Blangko" : "Rapor"} berhasil diunduh!`, { id: "blangko-toast" });
     } catch (err) {
       console.error(err);
-      toast.error("Gagal membuat blangko", { id: "blangko-toast" });
+      toast.error(`Gagal membuat ${isBlangkoMode ? "blangko" : "rapor"}`, { id: "blangko-toast" });
     } finally {
       setBlangkoPrinting(false);
+      setBatchReportCards([]);
     }
   };
 
@@ -311,6 +346,7 @@ function Rapor() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Pengaturan Cetak Rapor</DialogTitle>
+                  <DialogDescription className="hidden">Konfigurasi tanggal dan penanda tangan rapor</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -346,22 +382,26 @@ function Rapor() {
               </DialogContent>
             </Dialog>
 
-            {/* Cetak Blangko */}
+            {/* Cetak Blangko / Rombel */}
             <Dialog open={blangkoOpen} onOpenChange={setBlangkoOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" id="btn-cetak-blangko" disabled={!yearId}>
                   <FileDown className="h-4 w-4 mr-2" />
-                  Cetak Blangko
+                  Cetak Rombel / Blangko
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Cetak Blangko Rapor Kosong</DialogTitle>
+                  <DialogTitle>Cetak Rapor Rombel</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <p className="text-sm text-muted-foreground">
-                    Cetak template rapor kosong (tanpa nilai) untuk satu rombel. PDF berisi satu halaman per santri.
-                  </p>
+                  <DialogDescription className="text-sm text-muted-foreground">
+                    Cetak rapor untuk satu rombel penuh.
+                  </DialogDescription>
+                  <div className="flex items-center space-x-2 bg-muted p-2 rounded-md">
+                    <Switch id="is-blangko" checked={isBlangkoMode} onCheckedChange={setIsBlangkoMode} />
+                    <Label htmlFor="is-blangko" className="font-semibold text-xs">Cetak Blangko Saja (Hanya Template, Tanpa Nilai)</Label>
+                  </div>
                   <div className="space-y-2">
                     <Label>Kelas</Label>
                     <Select value={blangkoKelas} onValueChange={(v) => { setBlangkoKelas(v); setBlangkoRombel(""); }}>
@@ -408,7 +448,7 @@ function Rapor() {
                       className="bg-emerald-600 hover:bg-emerald-500"
                     >
                       <Printer className="h-4 w-4 mr-2" />
-                      {blangkoPrinting ? "Membuat PDF..." : "Unduh Blangko"}
+                      {blangkoPrinting ? "Membuat PDF..." : (isBlangkoMode ? "Unduh Blangko" : "Unduh Rapor")}
                     </Button>
                   </div>
                 </div>
@@ -460,36 +500,58 @@ function Rapor() {
         </div>
       )}
 
-      {/* Hidden blangko elements for printing — rendered off-screen */}
+      {/* Hidden elements for printing — rendered off-screen */}
       {blangkoOpen && blangkoRombel && (
         <div
           style={{ position: "absolute", left: "-9999px", top: 0, pointerEvents: "none" }}
           aria-hidden="true"
         >
-          {(studentList ?? [])
-            .filter((s: any) => {
-              const rombel = rombelList?.find((r: any) => r.id === blangkoRombel);
-              return rombel && String(s.class_level) === blangkoKelas;
-            })
-            .map((student: any) => (
+          {isBlangkoMode ? (
+            (studentList ?? [])
+              .filter((s: any) => {
+                const rombel = rombelList?.find((r: any) => r.id === blangkoRombel);
+                return rombel && String(s.class_level) === blangkoKelas;
+              })
+              .map((student: any) => (
+                <RaporSheet
+                  key={student.id}
+                  id={`blangko-${student.id}`}
+                  isBlangko
+                  blangkoStudent={student}
+                  blangkoSubjects={subjectList}
+                  classLevel={Number(blangkoKelas)}
+                  sections={getSectionLetters(Number(blangkoKelas))}
+                  speechLabels={DEFAULT_SPEECH_LABELS}
+                  computerLabels={DEFAULT_COMPUTER_LABELS}
+                  discussionLabels={DEFAULT_DISCUSSION_LABELS}
+                  printDate={printDate}
+                  headmasterName={headmasterName}
+                  signatureImage={signatureImage}
+                  showSignature={showSignature}
+                  numberToWords={numberToWords}
+                  reportCard={null}
+                />
+              ))
+          ) : (
+            batchReportCards.map((rc: any) => (
               <RaporSheet
-                key={student.id}
-                id={`blangko-${student.id}`}
-                isBlangko
-                blangkoStudent={student}
+                key={rc.student.id}
+                id={`batch-${rc.student.id}`}
+                isBlangko={false}
+                reportCard={rc}
                 classLevel={Number(blangkoKelas)}
                 sections={getSectionLetters(Number(blangkoKelas))}
-                speechLabels={DEFAULT_SPEECH_LABELS}
-                computerLabels={DEFAULT_COMPUTER_LABELS}
-                discussionLabels={DEFAULT_DISCUSSION_LABELS}
+                speechLabels={speechLabels}
+                computerLabels={computerLabels}
+                discussionLabels={discussionLabels}
                 printDate={printDate}
                 headmasterName={headmasterName}
                 signatureImage={signatureImage}
                 showSignature={showSignature}
                 numberToWords={numberToWords}
-                reportCard={null}
               />
-            ))}
+            ))
+          )}
         </div>
       )}
     </div>
@@ -512,12 +574,13 @@ interface RaporSheetProps {
   numberToWords: (n: number) => string;
   isBlangko?: boolean;
   blangkoStudent?: any;
+  blangkoSubjects?: any[];
 }
 
 function RaporSheet({
   id, reportCard, classLevel, sections, speechLabels, computerLabels, discussionLabels,
   printDate, headmasterName, signatureImage, showSignature, numberToWords,
-  isBlangko = false, blangkoStudent,
+  isBlangko = false, blangkoStudent, blangkoSubjects,
 }: RaporSheetProps) {
   const student = isBlangko ? blangkoStudent : reportCard?.student;
   const subjectScores = isBlangko ? [] : (reportCard?.subjectScores ?? []);
@@ -553,20 +616,8 @@ function RaporSheet({
     value: discussionScore ? Number(discussionScore[key] ?? 0) : 0,
   }));
 
-  return (
-    <div
-      id={id}
-      className="print-area bg-white text-black border shadow-sm"
-      style={{
-        width: "210mm",
-        minHeight: "297mm",
-        padding: "14mm 16mm",
-        fontFamily: '"Times New Roman", Times, serif',
-        fontSize: "11pt",
-        lineHeight: 1.35,
-      }}
-    >
-      {/* Header */}
+  const renderHeaderInfo = () => (
+    <>
       <div className="text-center pb-2">
         <h1 className="text-[15pt] font-bold tracking-wide">
           RAUDHATUSSALAM ISLAMIC BOARDING SCHOOL
@@ -593,14 +644,14 @@ function RaporSheet({
             <td className="w-[14%] py-0.5 align-bottom">Name</td>
             <td className="w-[2%] py-0.5 align-bottom text-center">:</td>
             <td className="w-[84%] py-0.5 align-bottom font-bold border-b border-black">
-              {isBlangko ? <span>&nbsp;</span> : student?.full_name}
+              {student?.full_name}
             </td>
           </tr>
           <tr>
             <td className="py-0.5 align-bottom">Reg. No</td>
             <td className="py-0.5 align-bottom text-center">:</td>
             <td className="py-0.5 align-bottom font-bold border-b border-black">
-              {isBlangko ? <span>&nbsp;</span> : student?.stambuk}
+              {student?.stambuk}
             </td>
           </tr>
           <tr>
@@ -609,13 +660,30 @@ function RaporSheet({
             <td className="py-0.5 align-bottom font-bold border-b border-black">
               {isBlangko
                 ? `${classLevel}${student?.rombel_name ?? ""}`
-                : `${student?.class_level ?? ""}${student?.rombel_name ?? ""}`}
+                : `${reportCard?.placement?.class_level ?? ""}${reportCard?.placement?.rombel_name ?? ""}`}
             </td>
           </tr>
         </tbody>
       </table>
+    </>
+  );
 
-      {/* Section A — Academic */}
+  const pageStyle = {
+    width: "210mm",
+    height: "297mm",
+    padding: "14mm 16mm",
+    fontFamily: '"Times New Roman", Times, serif',
+    fontSize: "11pt",
+    lineHeight: 1.35,
+  };
+
+  return (
+    <div id={id} className="flex flex-col gap-4">
+      {/* PAGE 1 */}
+      <div className="print-page print-area bg-white text-black border shadow-sm relative overflow-hidden" style={pageStyle}>
+        {renderHeaderInfo()}
+
+        {/* Section A — Academic */}
       <SectionTitle>{sections.academic}. CORE SUBJECT</SectionTitle>
       <table className="w-full border-collapse text-[10.5pt]">
         <thead>
@@ -632,14 +700,14 @@ function RaporSheet({
         </thead>
         <tbody>
           {isBlangko ? (
-            // Blangko: baris kosong sebanyak 5
-            Array.from({ length: 5 }).map((_, i) => (
+            // Blangko: baris berdasarkan mapel kelas tersebut
+            (blangkoSubjects?.length ? blangkoSubjects : Array.from({ length: 12 })).map((subj: any, i) => (
               <tr key={i}>
                 <Td center>{i + 1}</Td>
-                <Td><span className="text-gray-300">──────────────────────</span></Td>
-                <Td center><span className="text-gray-300">─────</span></Td>
-                <Td center><span className="text-gray-300">─────────────</span></Td>
-                <Td center><span className="text-gray-300">─────</span></Td>
+                <Td>{subj?.name || "\u00A0"}</Td>
+                <Td center>&nbsp;</Td>
+                <Td center>&nbsp;</Td>
+                <Td center>&nbsp;</Td>
               </tr>
             ))
           ) : (
@@ -799,8 +867,13 @@ function RaporSheet({
           )
         )}
       </div>
+      </div>
 
-      {/* Section C — Computer (Kelas 4 & 5) */}
+      {/* PAGE 2 */}
+      <div className="print-page print-area bg-white text-black border shadow-sm relative overflow-hidden" style={pageStyle}>
+        {renderHeaderInfo()}
+
+        {/* Section C — Computer (Kelas 4 & 5) */}
       {showComputer && (
         <div className="mt-6">
           <SectionTitle>{sections.computer}. Computer Practical Skill</SectionTitle>
@@ -883,6 +956,7 @@ function RaporSheet({
           </div>
           <p className="font-bold">{headmasterName || "________________________"}</p>
         </div>
+      </div>
       </div>
     </div>
   );

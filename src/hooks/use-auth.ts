@@ -5,7 +5,13 @@ import type { JwtPayload } from "@/lib/api/auth.functions";
 const TOKEN_KEY = "sira_token";
 const USER_KEY = "sira_user";
 
-type AuthUser = Pick<JwtPayload, "userId" | "email" | "name" | "role">;
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "wali_kelas" | "guru";
+  userId?: string;
+}
 
 type AuthState = {
   token: string | null;

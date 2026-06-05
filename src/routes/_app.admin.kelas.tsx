@@ -85,7 +85,7 @@ function KelasPage() {
                   {((cls.rombels as Array<Record<string, unknown>>) ?? []).map((r) => (
                     <div key={r.id as string} className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 text-sm">
                       <span className="font-medium">Kelas {cls.level}{r.name as string}</span>
-                      {r.wali_kelas_name && <span className="text-xs text-muted-foreground ml-2">({r.wali_kelas_name as string})</span>}
+                      {!!r.wali_kelas_name && <span className="text-xs text-muted-foreground ml-2">({r.wali_kelas_name as string})</span>}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button className="ml-2 text-muted-foreground hover:text-red-500 transition-colors">

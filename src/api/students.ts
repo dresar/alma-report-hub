@@ -43,7 +43,7 @@ export const getStudentsFn = createServerFn()
         LIMIT ${parsedLimit} OFFSET ${offset}
       `;
       const totalCount = rows.length > 0 ? parseInt(String(rows[0].full_count)) : 0;
-      return { data: rows, total: totalCount, page: parsedPage, limit: parsedLimit };
+      return { data: rows.map(r => ({ ...r })), total: totalCount, page: parsedPage, limit: parsedLimit };
     }
 
     const rows = await sql`
@@ -56,7 +56,7 @@ export const getStudentsFn = createServerFn()
       LIMIT ${parsedLimit} OFFSET ${offset}
     `;
     const totalCount = rows.length > 0 ? parseInt(String(rows[0].full_count)) : 0;
-    return { data: rows, total: totalCount, page: parsedPage, limit: parsedLimit };
+    return { data: rows.map(r => ({ ...r })), total: totalCount, page: parsedPage, limit: parsedLimit };
   });
 
 // ── Get single student ─────────────────────────────────────────────────
@@ -76,7 +76,26 @@ export const getStudentFn = createServerFn()
       WHERE sr.student_id = ${data.studentId}
       ORDER BY ay.year DESC
     `;
-    return { ...students[0], history };
+    return {
+      id: students[0].id as string,
+      stambuk: students[0].stambuk as string,
+      full_name: students[0].full_name as string,
+      gender: students[0].gender as string,
+      birth_place: students[0].birth_place as string | null,
+      birth_date: students[0].birth_date as string | null,
+      parent_name: students[0].parent_name as string | null,
+      address: students[0].address as string | null,
+      entry_year: students[0].entry_year as string | null,
+      status: students[0].status as string,
+      created_at: students[0].created_at as string,
+      history: history.map(r => ({
+        id: r.id as string,
+        year: r.year as string,
+        class_level: r.class_level as number,
+        rombel_name: r.rombel_name as string,
+        rombel_id: r.rombel_id as string,
+      })),
+    };
   });
 
 // ── Create student ─────────────────────────────────────────────────────
@@ -90,7 +109,7 @@ export const createStudentFn = createServerFn()
     birthDate?: string;
     parentName?: string;
     address?: string;
-    entryYear?: number;
+    entryYear?: string;
     status?: string;
     rombelId?: string;
     academicYearId?: string;
@@ -113,7 +132,7 @@ export const createStudentFn = createServerFn()
         ON CONFLICT (student_id, academic_year_id) DO UPDATE SET rombel_id = EXCLUDED.rombel_id
       `;
     }
-    return student;
+    return student ? { ...student } : null;
   });
 
 // ── Update student ─────────────────────────────────────────────────────
@@ -128,7 +147,7 @@ export const updateStudentFn = createServerFn()
     birthDate?: string;
     parentName?: string;
     address?: string;
-    entryYear?: number;
+    entryYear?: string;
     status?: string;
   }) => data)
   .handler(async ({ data }) => {
@@ -148,7 +167,7 @@ export const updateStudentFn = createServerFn()
       WHERE id = ${data.studentId}
       RETURNING *
     `;
-    return rows[0];
+    return rows[0] ? { ...rows[0] } : null;
   });
 
 // ── Delete student ─────────────────────────────────────────────────────

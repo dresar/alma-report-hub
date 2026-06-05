@@ -7,13 +7,15 @@ export const getSubjectsFn = createServerFn()
   .handler(async ({ data }) => {
     const sql = getDb();
     if (data.classLevel !== undefined) {
-      return await sql`
+      const rows = await sql`
         SELECT * FROM subjects
         WHERE class_level = ${data.classLevel} AND is_active = true
         ORDER BY sort_order, name
       `;
+      return rows.map(r => ({ ...r }));
     }
-    return await sql`SELECT * FROM subjects WHERE is_active = true ORDER BY class_level, sort_order, name`;
+    const rows = await sql`SELECT * FROM subjects WHERE is_active = true ORDER BY class_level, sort_order, name`;
+    return rows.map(r => ({ ...r }));
   });
 
 // ── Create subject ─────────────────────────────────────────────────────
@@ -25,7 +27,7 @@ export const createSubjectFn = createServerFn()
     bobotTugas: number;
     bobotUts: number;
     bobotUas: number;
-    sortOrder: number;
+    sortOrder?: number;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
@@ -33,10 +35,10 @@ export const createSubjectFn = createServerFn()
     if (me.role !== "admin") throw new Error("Tidak punya akses");
     const rows = await sql`
       INSERT INTO subjects (name, class_level, bobot_tugas, bobot_uts, bobot_uas, sort_order)
-      VALUES (${data.name}, ${data.classLevel}, ${data.bobotTugas}, ${data.bobotUts}, ${data.bobotUas}, ${data.sortOrder})
+      VALUES (${data.name}, ${data.classLevel}, ${data.bobotTugas}, ${data.bobotUts}, ${data.bobotUas}, ${data.sortOrder ?? 0})
       RETURNING *
     `;
-    return rows[0];
+    return rows[0] ? { ...rows[0] } : null;
   });
 
 // ── Update subject ─────────────────────────────────────────────────────
@@ -74,7 +76,7 @@ export const updateSubjectFn = createServerFn()
       `UPDATE subjects SET ${setClauses} WHERE id = $${values.length} RETURNING *`,
       values as any[]
     );
-    return rows[0];
+    return rows[0] ? ({ ...rows[0] } as any) : null;
   });
 
 // ── Delete (soft) subject ──────────────────────────────────────────────

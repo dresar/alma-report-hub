@@ -23,14 +23,18 @@ export const getSubjectScoresFn = createServerFn()
       SELECT * FROM subject_scores
       WHERE academic_year_id = ${data.academicYearId} AND student_id = ANY(${students.map((s) => s.id)})
     `;
-    return { students, subjects, scores };
+    return {
+      students: students.map(r => ({ ...r })),
+      subjects: subjects.map(r => ({ ...r })),
+      scores: scores.map(r => ({ ...r })),
+    };
   });
 
 export const saveSubjectScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; subjectId: string; tugas?: number; uts?: number; uas?: number }>;
+    scores: Array<{ studentId: string; subjectId: string; tugas?: number | null; uts?: number | null; uas?: number | null }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
@@ -39,13 +43,16 @@ export const saveSubjectScoresFn = createServerFn()
       const subj = await sql`SELECT bobot_tugas, bobot_uts, bobot_uas FROM subjects WHERE id = ${score.subjectId}`;
       if (subj.length === 0) continue;
       const { bobot_tugas: bt, bobot_uts: bu, bobot_uas: buas } = subj[0];
-      const tugas = score.tugas ?? 0;
-      const uts = score.uts ?? 0;
-      const uas = score.uas ?? 0;
-      const finalScore = Math.round((tugas * Number(bt) + uts * Number(bu) + uas * Number(buas)) * 10) / 10;
+      const tugasVal = score.tugas ?? 0;
+      const utsVal = score.uts ?? 0;
+      const uasVal = score.uas ?? 0;
+      const finalScore = Math.round((tugasVal * Number(bt) + utsVal * Number(bu) + uasVal * Number(buas)) * 10) / 10;
+      const tugas = score.tugas ?? null;
+      const uts = score.uts ?? null;
+      const uas = score.uas ?? null;
       await sql`
         INSERT INTO subject_scores (student_id, subject_id, academic_year_id, tugas, uts, uas, final_score, updated_at)
-        VALUES (${score.studentId}, ${score.subjectId}, ${data.academicYearId}, ${score.tugas}, ${score.uts}, ${score.uas}, ${finalScore}, now())
+        VALUES (${score.studentId}, ${score.subjectId}, ${data.academicYearId}, ${tugas}, ${uts}, ${uas}, ${finalScore}, now())
         ON CONFLICT (student_id, subject_id, academic_year_id) DO UPDATE
           SET tugas = EXCLUDED.tugas, uts = EXCLUDED.uts, uas = EXCLUDED.uas,
               final_score = EXCLUDED.final_score, updated_at = now()
@@ -80,24 +87,32 @@ export const getSpeechScoresFn = createServerFn()
       WHERE academic_year_id = ${data.academicYearId} AND student_id = ANY(${students.map((s) => s.id)})
       ORDER BY language
     `;
-    return { students, scores };
+    return {
+      students: students.map(r => ({ ...r })),
+      scores: scores.map(r => ({ ...r })),
+    };
   });
 
 export const saveSpeechScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; language: string; penguasaan?: number; kelancaran?: number; intonasi?: number; kepercayaan?: number; penampilan?: number }>;
+    scores: Array<{ studentId: string; language: string; penguasaan?: number | null; kelancaran?: number | null; intonasi?: number | null; kepercayaan?: number | null; penampilan?: number | null }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
     for (const s of data.scores) {
+      const p = s.penguasaan ?? null;
+      const k = s.kelancaran ?? null;
+      const i = s.intonasi ?? null;
+      const kep = s.kepercayaan ?? null;
+      const pen = s.penampilan ?? null;
       const vals = [s.penguasaan ?? 0, s.kelancaran ?? 0, s.intonasi ?? 0, s.kepercayaan ?? 0, s.penampilan ?? 0];
       const finalScore = Math.round((vals.reduce((a, b) => a + b, 0) / 5) * 10) / 10;
       await sql`
         INSERT INTO speech_scores (student_id, academic_year_id, language, penguasaan, kelancaran, intonasi, kepercayaan, penampilan, final_score, updated_at)
-        VALUES (${s.studentId}, ${data.academicYearId}, ${s.language}, ${s.penguasaan}, ${s.kelancaran}, ${s.intonasi}, ${s.kepercayaan}, ${s.penampilan}, ${finalScore}, now())
+        VALUES (${s.studentId}, ${data.academicYearId}, ${s.language}, ${p}, ${k}, ${i}, ${kep}, ${pen}, ${finalScore}, now())
         ON CONFLICT (student_id, academic_year_id, language) DO UPDATE
           SET penguasaan = EXCLUDED.penguasaan, kelancaran = EXCLUDED.kelancaran,
               intonasi = EXCLUDED.intonasi, kepercayaan = EXCLUDED.kepercayaan,
@@ -123,24 +138,32 @@ export const getComputerScoresFn = createServerFn()
       SELECT * FROM computer_scores
       WHERE academic_year_id = ${data.academicYearId} AND student_id = ANY(${students.map((s) => s.id)})
     `;
-    return { students, scores };
+    return {
+      students: students.map(r => ({ ...r })),
+      scores: scores.map(r => ({ ...r })),
+    };
   });
 
 export const saveComputerScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; pengoperasian?: number; msWord?: number; msExcel?: number; internet?: number; presentasi?: number }>;
+    scores: Array<{ studentId: string; pengoperasian?: number | null; msWord?: number | null; msExcel?: number | null; internet?: number | null; presentasi?: number | null }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
     for (const s of data.scores) {
+      const p = s.pengoperasian ?? null;
+      const w = s.msWord ?? null;
+      const e = s.msExcel ?? null;
+      const i = s.internet ?? null;
+      const pr = s.presentasi ?? null;
       const vals = [s.pengoperasian ?? 0, s.msWord ?? 0, s.msExcel ?? 0, s.internet ?? 0, s.presentasi ?? 0];
       const finalScore = Math.round((vals.reduce((a, b) => a + b, 0) / 5) * 10) / 10;
       await sql`
         INSERT INTO computer_scores (student_id, academic_year_id, pengoperasian, ms_word, ms_excel, internet, presentasi, final_score, updated_at)
-        VALUES (${s.studentId}, ${data.academicYearId}, ${s.pengoperasian}, ${s.msWord}, ${s.msExcel}, ${s.internet}, ${s.presentasi}, ${finalScore}, now())
+        VALUES (${s.studentId}, ${data.academicYearId}, ${p}, ${w}, ${e}, ${i}, ${pr}, ${finalScore}, now())
         ON CONFLICT (student_id, academic_year_id) DO UPDATE
           SET pengoperasian = EXCLUDED.pengoperasian, ms_word = EXCLUDED.ms_word, ms_excel = EXCLUDED.ms_excel,
               internet = EXCLUDED.internet, presentasi = EXCLUDED.presentasi, final_score = EXCLUDED.final_score, updated_at = now()
@@ -165,24 +188,32 @@ export const getDiscussionScoresFn = createServerFn()
       SELECT * FROM discussion_scores
       WHERE academic_year_id = ${data.academicYearId} AND student_id = ANY(${students.map((s) => s.id)})
     `;
-    return { students, scores };
+    return {
+      students: students.map(r => ({ ...r })),
+      scores: scores.map(r => ({ ...r })),
+    };
   });
 
 export const saveDiscussionScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; keaktifan?: number; argumentasi?: number; kerjasama?: number; penguasaan?: number; etika?: number }>;
+    scores: Array<{ studentId: string; keaktifan?: number | null; argumentasi?: number | null; kerjasama?: number | null; penguasaan?: number | null; etika?: number | null }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
     for (const s of data.scores) {
+      const k = s.keaktifan ?? null;
+      const a = s.argumentasi ?? null;
+      const ks = s.kerjasama ?? null;
+      const p = s.penguasaan ?? null;
+      const e = s.etika ?? null;
       const vals = [s.keaktifan ?? 0, s.argumentasi ?? 0, s.kerjasama ?? 0, s.penguasaan ?? 0, s.etika ?? 0];
       const finalScore = Math.round((vals.reduce((a, b) => a + b, 0) / 5) * 10) / 10;
       await sql`
         INSERT INTO discussion_scores (student_id, academic_year_id, keaktifan, argumentasi, kerjasama, penguasaan, etika, final_score, updated_at)
-        VALUES (${s.studentId}, ${data.academicYearId}, ${s.keaktifan}, ${s.argumentasi}, ${s.kerjasama}, ${s.penguasaan}, ${s.etika}, ${finalScore}, now())
+        VALUES (${s.studentId}, ${data.academicYearId}, ${k}, ${a}, ${ks}, ${p}, ${e}, ${finalScore}, now())
         ON CONFLICT (student_id, academic_year_id) DO UPDATE
           SET keaktifan = EXCLUDED.keaktifan, argumentasi = EXCLUDED.argumentasi, kerjasama = EXCLUDED.kerjasama,
               penguasaan = EXCLUDED.penguasaan, etika = EXCLUDED.etika, final_score = EXCLUDED.final_score, updated_at = now()
@@ -207,7 +238,10 @@ export const getAttendanceFn = createServerFn()
       SELECT * FROM attendance
       WHERE academic_year_id = ${data.academicYearId} AND student_id = ANY(${students.map((s) => s.id)})
     `;
-    return { students, attendance };
+    return {
+      students: students.map(r => ({ ...r })),
+      attendance: attendance.map(r => ({ ...r })),
+    };
   });
 
 export const saveAttendanceFn = createServerFn()
@@ -220,9 +254,13 @@ export const saveAttendanceFn = createServerFn()
     const sql = getDb();
     verifyToken(data.token);
     for (const a of data.attendance) {
+      const schoolDays = a.schoolDays ?? null;
+      const present = a.present ?? null;
+      const permission = a.permission ?? null;
+      const absent = a.absent ?? null;
       await sql`
         INSERT INTO attendance (student_id, academic_year_id, school_days, present, permission, absent, updated_at)
-        VALUES (${a.studentId}, ${data.academicYearId}, ${a.schoolDays}, ${a.present}, ${a.permission}, ${a.absent}, now())
+        VALUES (${a.studentId}, ${data.academicYearId}, ${schoolDays}, ${present}, ${permission}, ${absent}, now())
         ON CONFLICT (student_id, academic_year_id) DO UPDATE
           SET school_days = EXCLUDED.school_days, present = EXCLUDED.present,
               permission = EXCLUDED.permission, absent = EXCLUDED.absent, updated_at = now()

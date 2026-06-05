@@ -13,8 +13,17 @@ export const getClassesFn = createServerFn()
       ORDER BY r.name
     `;
     return classes.map((c) => ({
-      ...c,
-      rombels: rombels.filter((r) => r.class_id === c.id),
+      id: c.id as string,
+      level: c.level as number,
+      rombels: rombels
+        .filter((r) => r.class_id === c.id)
+        .map((r) => ({
+          id: r.id as string,
+          class_id: r.class_id as string,
+          name: r.name as string,
+          wali_kelas_id: r.wali_kelas_id as string | null,
+          wali_kelas_name: r.wali_kelas_name as string | null,
+        })),
     }));
   });
 
@@ -24,20 +33,34 @@ export const getRombelsFn = createServerFn()
   .handler(async ({ data }) => {
     const sql = getDb();
     if (data.classLevel !== undefined) {
-      return await sql`
+      const rows = await sql`
         SELECT r.*, c.level as class_level
         FROM rombels r
         JOIN classes c ON c.id = r.class_id
         WHERE c.level = ${data.classLevel}
         ORDER BY r.name
       `;
+      return rows.map((r) => ({
+        id: r.id as string,
+        class_id: r.class_id as string,
+        name: r.name as string,
+        wali_kelas_id: r.wali_kelas_id as string | null,
+        class_level: r.class_level as number,
+      }));
     }
-    return await sql`
+    const rows = await sql`
       SELECT r.*, c.level as class_level
       FROM rombels r
       JOIN classes c ON c.id = r.class_id
       ORDER BY c.level, r.name
     `;
+    return rows.map((r) => ({
+      id: r.id as string,
+      class_id: r.class_id as string,
+      name: r.name as string,
+      wali_kelas_id: r.wali_kelas_id as string | null,
+      class_level: r.class_level as number,
+    }));
   });
 
 // ── Create rombel ──────────────────────────────────────────────────────
@@ -54,7 +77,14 @@ export const createRombelFn = createServerFn()
       VALUES (${classes[0].id}, ${data.name}, ${data.waliKelasId || null})
       RETURNING *
     `;
-    return rows[0];
+    return rows[0]
+      ? {
+          id: rows[0].id as string,
+          class_id: rows[0].class_id as string,
+          name: rows[0].name as string,
+          wali_kelas_id: rows[0].wali_kelas_id as string | null,
+        }
+      : null;
   });
 
 // ── Update rombel ──────────────────────────────────────────────────────
@@ -68,7 +98,14 @@ export const updateRombelFn = createServerFn()
       UPDATE rombels SET wali_kelas_id = ${data.waliKelasId}
       WHERE id = ${data.rombelId} RETURNING *
     `;
-    return rows[0];
+    return rows[0]
+      ? {
+          id: rows[0].id as string,
+          class_id: rows[0].class_id as string,
+          name: rows[0].name as string,
+          wali_kelas_id: rows[0].wali_kelas_id as string | null,
+        }
+      : null;
   });
 
 // ── Delete rombel ──────────────────────────────────────────────────────
