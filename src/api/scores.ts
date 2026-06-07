@@ -30,7 +30,7 @@ export const getSubjectScoresFn = createServerFn()
     };
   });
 
-export const saveSubjectScoresFn = createServerFn()
+export const saveSubjectScoresFn = createServerFn({ method: "POST" })
   .inputValidator((data: {
     token: string;
     academicYearId: string;
@@ -100,7 +100,7 @@ export const getSpeechScoresFn = createServerFn()
     };
   });
 
-export const saveSpeechScoresFn = createServerFn()
+export const saveSpeechScoresFn = createServerFn({ method: "POST" })
   .inputValidator((data: {
     token: string;
     academicYearId: string;
@@ -166,7 +166,7 @@ export const getComputerScoresFn = createServerFn()
     };
   });
 
-export const saveComputerScoresFn = createServerFn()
+export const saveComputerScoresFn = createServerFn({ method: "POST" })
   .inputValidator((data: {
     token: string;
     academicYearId: string;
@@ -231,7 +231,7 @@ export const getDiscussionScoresFn = createServerFn()
     };
   });
 
-export const saveDiscussionScoresFn = createServerFn()
+export const saveDiscussionScoresFn = createServerFn({ method: "POST" })
   .inputValidator((data: {
     token: string;
     academicYearId: string;
@@ -296,7 +296,7 @@ export const getAttendanceFn = createServerFn()
     };
   });
 
-export const saveAttendanceFn = createServerFn()
+export const saveAttendanceFn = createServerFn({ method: "POST" })
   .inputValidator((data: {
     token: string;
     academicYearId: string;

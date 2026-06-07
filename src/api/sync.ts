@@ -25,6 +25,70 @@ export const getSyncDataFn = createServerFn()
       )
     `;
 
+    // Ensure new score tables exist
+    await sql`
+      CREATE TABLE IF NOT EXISTS speech_scores (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_id       UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+        language         TEXT NOT NULL CHECK (language IN ('Indonesia','Arab','Inggris')),
+        penguasaan       NUMERIC(5,2),
+        kelancaran       NUMERIC(5,2),
+        intonasi         NUMERIC(5,2),
+        kepercayaan      NUMERIC(5,2),
+        penampilan       NUMERIC(5,2),
+        final_score      NUMERIC(5,2),
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (student_id, academic_year_id, language)
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS computer_scores (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_id       UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+        pengoperasian    NUMERIC(5,2),
+        ms_word          NUMERIC(5,2),
+        ms_excel         NUMERIC(5,2),
+        internet         NUMERIC(5,2),
+        presentasi       NUMERIC(5,2),
+        final_score      NUMERIC(5,2),
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (student_id, academic_year_id)
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS discussion_scores (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_id       UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+        keaktifan        NUMERIC(5,2),
+        argumentasi      NUMERIC(5,2),
+        kerjasama        NUMERIC(5,2),
+        penguasaan       NUMERIC(5,2),
+        etika            NUMERIC(5,2),
+        final_score      NUMERIC(5,2),
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (student_id, academic_year_id)
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS attendance (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        student_id       UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        academic_year_id UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+        school_days      SMALLINT NOT NULL DEFAULT 0,
+        present          SMALLINT NOT NULL DEFAULT 0,
+        permission       SMALLINT NOT NULL DEFAULT 0,
+        absent           SMALLINT NOT NULL DEFAULT 0,
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (student_id, academic_year_id)
+      )
+    `;
+
     const [
       academicYears,
       classes,
@@ -39,8 +103,8 @@ export const getSyncDataFn = createServerFn()
       discussionScores,
       attendance
     ] = await Promise.all([
-      sql`SELECT * FROM academic_years ORDER BY start_date DESC`,
-      sql`SELECT * FROM classes ORDER BY level, name`,
+      sql`SELECT * FROM academic_years ORDER BY year DESC, semester ASC`,
+      sql`SELECT * FROM classes ORDER BY level`,
       sql`SELECT * FROM rombels`,
       sql`SELECT * FROM subjects ORDER BY sort_order, name`,
       sql`SELECT * FROM skill_aspect_configs ORDER BY skill_type, sort_order, aspect_key`,

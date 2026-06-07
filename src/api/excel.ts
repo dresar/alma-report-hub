@@ -151,7 +151,7 @@ export const exportExcelTemplateFn = createServerFn()
     return { base64: b64, filename: `Template_Nilai_Kelas_${classLevel}_${academicYearId}.xlsx` };
   });
 
-export const importExcelScoresFn = createServerFn()
+export const importExcelScoresFn = createServerFn({ method: "POST" })
   .inputValidator((data: { token: string; academicYearId: string; classLevel: number; base64: string }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();

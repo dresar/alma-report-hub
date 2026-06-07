@@ -38,7 +38,7 @@ export const getPrintSettingsFn = createServerFn()
   });
 
 // ── Save print settings ────────────────────────────────────────────────
-export const savePrintSettingsFn = createServerFn()
+export const savePrintSettingsFn = createServerFn({ method: "POST" })
   .inputValidator((data: { token: string; settings: Record<string, string> }) => data)
   .handler(async ({ data }) => {
     await ensurePrintSettingsTable();

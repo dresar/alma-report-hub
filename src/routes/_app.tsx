@@ -2,7 +2,7 @@ import { createFileRoute, Outlet, useRouterState, useNavigate } from "@tanstack/
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { toast } from "sonner";
@@ -29,13 +29,19 @@ function AppLayout() {
   const navigate = useNavigate();
   const { isLoggedIn, user, logout } = useAuth();
 
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!isLoggedIn) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isLoggedIn) {
       navigate({ to: "/" });
     }
-  }, [isLoggedIn, navigate]);
+  }, [mounted, isLoggedIn, navigate]);
 
-  if (!isLoggedIn) return null;
+  if (!mounted || !isLoggedIn) return null;
 
   function handleLogout() {
     logout();
