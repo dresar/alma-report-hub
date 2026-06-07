@@ -7,4 +7,5 @@ export {
   deleteStudentFn,
   bulkDeleteStudentsFn,
   assignRombelFn as assignStudentRombelFn,
+  migrateRombelsFn,
 } from "@/api/students";

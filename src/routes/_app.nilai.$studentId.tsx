@@ -417,7 +417,7 @@ function NilaiStudentPage() {
                         <TableCell className="font-medium">
                           {subj.name}
                           <div className="text-[10px] text-muted-foreground font-normal">
-                            Bobot: T:{Math.round(Number(subj.bobot_tugas)*100)}% U:{Math.round((Number(subj.bobot_uts)+Number(subj.bobot_uas))*100)}%
+                            Bobot: Tugas {Math.round(Number(subj.bobot_tugas)*100)}%, Ujian {Math.round((Number(subj.bobot_uts)+Number(subj.bobot_uas))*100)}%
                           </div>
                         </TableCell>
                         <TableCell className="text-center">

@@ -40,15 +40,22 @@ export const saveSubjectScoresFn = createServerFn()
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
+
+    // Batch: fetch all needed subjects in one query
+    const subjectIds = [...new Set(data.scores.map((s) => s.subjectId))];
+    const subjects = subjectIds.length > 0
+      ? await sql`SELECT id, bobot_tugas, bobot_uts, bobot_uas FROM subjects WHERE id = ANY(${subjectIds})`
+      : [];
+    const subjectMap = new Map(subjects.map(s => [s.id, s]));
+
     for (const score of data.scores) {
-      const subj = await sql`SELECT bobot_tugas, bobot_uts, bobot_uas FROM subjects WHERE id = ${score.subjectId}`;
-      if (subj.length === 0) continue;
-      const { bobot_tugas: bt, bobot_uts: bu, bobot_uas: buas } = subj[0];
+      const subj = subjectMap.get(score.subjectId);
+      if (!subj) continue;
       const tugasVal = score.tugas ?? 0;
       // ujian menggantikan UTS+UAS — bobotnya adalah gabungan keduanya
       const ujianVal = score.ujian ?? 0;
-      const bobotUjian = Number(bu) + Number(buas);
-      const finalScore = Math.round((tugasVal * Number(bt) + ujianVal * bobotUjian) * 10) / 10;
+      const bobotUjian = Number(subj.bobot_uts) + Number(subj.bobot_uas);
+      const finalScore = Math.round((tugasVal * Number(subj.bobot_tugas) + ujianVal * bobotUjian) * 10) / 10;
       const tugas = score.tugas ?? null;
       const ujian = score.ujian ?? null; // disimpan ke kolom uts
       await sql`
@@ -59,7 +66,6 @@ export const saveSubjectScoresFn = createServerFn()
               final_score = EXCLUDED.final_score, updated_at = now()
       `;
     }
-    const subjectIds = [...new Set(data.scores.map((s) => s.subjectId))];
     for (const sid of subjectIds) {
       await sql`
         UPDATE subject_scores ss SET class_avg = (
@@ -98,26 +104,41 @@ export const saveSpeechScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; language: string; penguasaan?: number | null; kelancaran?: number | null; intonasi?: number | null; kepercayaan?: number | null; penampilan?: number | null }>;
+    scores: Array<{ studentId: string; language: string; [key: string]: any }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
+
+    const aspects = await sql`SELECT aspect_key FROM skill_aspect_configs WHERE skill_type = 'speech' AND is_active = true`;
+    const aspectKeys = aspects.map(a => String(a.aspect_key));
+
     for (const s of data.scores) {
-      const p = s.penguasaan ?? null;
-      const k = s.kelancaran ?? null;
-      const i = s.intonasi ?? null;
-      const kep = s.kepercayaan ?? null;
-      const pen = s.penampilan ?? null;
-      const vals = [s.penguasaan ?? 0, s.kelancaran ?? 0, s.intonasi ?? 0, s.kepercayaan ?? 0, s.penampilan ?? 0];
-      const finalScore = Math.round((vals.reduce((a, b) => a + b, 0) / 5) * 10) / 10;
+      let sum = 0;
+      const values: Record<string, any> = {};
+      
+      for (const key of aspectKeys) {
+        const val = s[key];
+        values[key] = val ?? null;
+        sum += Number(val ?? 0);
+      }
+      
+      const finalScore = aspectKeys.length > 0 ? Math.round((sum / aspectKeys.length) * 10) / 10 : 0;
+      
+      const obj = {
+        student_id: s.studentId,
+        academic_year_id: data.academicYearId,
+        language: s.language,
+        final_score: finalScore,
+        updated_at: new Date(),
+        ...values
+      };
+
       await sql`
-        INSERT INTO speech_scores (student_id, academic_year_id, language, penguasaan, kelancaran, intonasi, kepercayaan, penampilan, final_score, updated_at)
-        VALUES (${s.studentId}, ${data.academicYearId}, ${s.language}, ${p}, ${k}, ${i}, ${kep}, ${pen}, ${finalScore}, now())
-        ON CONFLICT (student_id, academic_year_id, language) DO UPDATE
-          SET penguasaan = EXCLUDED.penguasaan, kelancaran = EXCLUDED.kelancaran,
-              intonasi = EXCLUDED.intonasi, kepercayaan = EXCLUDED.kepercayaan,
-              penampilan = EXCLUDED.penampilan, final_score = EXCLUDED.final_score, updated_at = now()
+        INSERT INTO speech_scores ${sql(obj)}
+        ON CONFLICT (student_id, academic_year_id, language) DO UPDATE SET
+        final_score = EXCLUDED.final_score, updated_at = EXCLUDED.updated_at
+        ${aspectKeys.length > 0 ? sql.unsafe(", " + aspectKeys.map(k => `${k} = EXCLUDED.${k}`).join(", ")) : sql.unsafe("")}
       `;
     }
     return { success: true };
@@ -149,25 +170,40 @@ export const saveComputerScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; pengoperasian?: number | null; msWord?: number | null; msExcel?: number | null; internet?: number | null; presentasi?: number | null }>;
+    scores: Array<{ studentId: string; [key: string]: any }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
+
+    const aspects = await sql`SELECT aspect_key FROM skill_aspect_configs WHERE skill_type = 'computer' AND is_active = true`;
+    const aspectKeys = aspects.map(a => String(a.aspect_key));
+
     for (const s of data.scores) {
-      const p = s.pengoperasian ?? null;
-      const w = s.msWord ?? null;
-      const e = s.msExcel ?? null;
-      const i = s.internet ?? null;
-      const pr = s.presentasi ?? null;
-      const vals = [s.pengoperasian ?? 0, s.msWord ?? 0, s.msExcel ?? 0, s.internet ?? 0, s.presentasi ?? 0];
-      const finalScore = Math.round((vals.reduce((a, b) => a + b, 0) / 5) * 10) / 10;
+      let sum = 0;
+      const values: Record<string, any> = {};
+      
+      for (const key of aspectKeys) {
+        const val = s[key];
+        values[key] = val ?? null;
+        sum += Number(val ?? 0);
+      }
+      
+      const finalScore = aspectKeys.length > 0 ? Math.round((sum / aspectKeys.length) * 10) / 10 : 0;
+      
+      const obj = {
+        student_id: s.studentId,
+        academic_year_id: data.academicYearId,
+        final_score: finalScore,
+        updated_at: new Date(),
+        ...values
+      };
+
       await sql`
-        INSERT INTO computer_scores (student_id, academic_year_id, pengoperasian, ms_word, ms_excel, internet, presentasi, final_score, updated_at)
-        VALUES (${s.studentId}, ${data.academicYearId}, ${p}, ${w}, ${e}, ${i}, ${pr}, ${finalScore}, now())
-        ON CONFLICT (student_id, academic_year_id) DO UPDATE
-          SET pengoperasian = EXCLUDED.pengoperasian, ms_word = EXCLUDED.ms_word, ms_excel = EXCLUDED.ms_excel,
-              internet = EXCLUDED.internet, presentasi = EXCLUDED.presentasi, final_score = EXCLUDED.final_score, updated_at = now()
+        INSERT INTO computer_scores ${sql(obj)}
+        ON CONFLICT (student_id, academic_year_id) DO UPDATE SET
+        final_score = EXCLUDED.final_score, updated_at = EXCLUDED.updated_at
+        ${aspectKeys.length > 0 ? sql.unsafe(", " + aspectKeys.map(k => `${k} = EXCLUDED.${k}`).join(", ")) : sql.unsafe("")}
       `;
     }
     return { success: true };
@@ -199,25 +235,40 @@ export const saveDiscussionScoresFn = createServerFn()
   .inputValidator((data: {
     token: string;
     academicYearId: string;
-    scores: Array<{ studentId: string; keaktifan?: number | null; argumentasi?: number | null; kerjasama?: number | null; penguasaan?: number | null; etika?: number | null }>;
+    scores: Array<{ studentId: string; [key: string]: any }>;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
     verifyToken(data.token);
+
+    const aspects = await sql`SELECT aspect_key FROM skill_aspect_configs WHERE skill_type = 'discussion' AND is_active = true`;
+    const aspectKeys = aspects.map(a => String(a.aspect_key));
+
     for (const s of data.scores) {
-      const k = s.keaktifan ?? null;
-      const a = s.argumentasi ?? null;
-      const ks = s.kerjasama ?? null;
-      const p = s.penguasaan ?? null;
-      const e = s.etika ?? null;
-      const vals = [s.keaktifan ?? 0, s.argumentasi ?? 0, s.kerjasama ?? 0, s.penguasaan ?? 0, s.etika ?? 0];
-      const finalScore = Math.round((vals.reduce((a, b) => a + b, 0) / 5) * 10) / 10;
+      let sum = 0;
+      const values: Record<string, any> = {};
+      
+      for (const key of aspectKeys) {
+        const val = s[key];
+        values[key] = val ?? null;
+        sum += Number(val ?? 0);
+      }
+      
+      const finalScore = aspectKeys.length > 0 ? Math.round((sum / aspectKeys.length) * 10) / 10 : 0;
+      
+      const obj = {
+        student_id: s.studentId,
+        academic_year_id: data.academicYearId,
+        final_score: finalScore,
+        updated_at: new Date(),
+        ...values
+      };
+
       await sql`
-        INSERT INTO discussion_scores (student_id, academic_year_id, keaktifan, argumentasi, kerjasama, penguasaan, etika, final_score, updated_at)
-        VALUES (${s.studentId}, ${data.academicYearId}, ${k}, ${a}, ${ks}, ${p}, ${e}, ${finalScore}, now())
-        ON CONFLICT (student_id, academic_year_id) DO UPDATE
-          SET keaktifan = EXCLUDED.keaktifan, argumentasi = EXCLUDED.argumentasi, kerjasama = EXCLUDED.kerjasama,
-              penguasaan = EXCLUDED.penguasaan, etika = EXCLUDED.etika, final_score = EXCLUDED.final_score, updated_at = now()
+        INSERT INTO discussion_scores ${sql(obj)}
+        ON CONFLICT (student_id, academic_year_id) DO UPDATE SET
+        final_score = EXCLUDED.final_score, updated_at = EXCLUDED.updated_at
+        ${aspectKeys.length > 0 ? sql.unsafe(", " + aspectKeys.map(k => `${k} = EXCLUDED.${k}`).join(", ")) : sql.unsafe("")}
       `;
     }
     return { success: true };

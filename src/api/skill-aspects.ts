@@ -112,3 +112,54 @@ export const updateSkillAspectFn = createServerFn()
     );
     return rows[0] as unknown as SkillAspect;
   });
+
+// ── Create skill aspect (admin only) ───────────────────────────────────
+export const createSkillAspectFn = createServerFn()
+  .inputValidator(
+    (data: {
+      token: string;
+      skillType: "speech" | "computer" | "discussion";
+      aspectKey: string;
+      labelId: string;
+      labelEn: string;
+      sortOrder: number;
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const sql = getDb();
+    const me = verifyToken(data.token);
+    if (me.role !== "admin") throw new Error("Tidak punya akses");
+
+    if (!/^[a-z_][a-z0-9_]*$/.test(data.aspectKey)) {
+      throw new Error("Format aspect key tidak valid. Gunakan huruf kecil dan underscore.");
+    }
+
+    await ensureSkillAspectsTable();
+
+    const rows = await sql`
+      INSERT INTO skill_aspect_configs (skill_type, aspect_key, label_id, label_en, sort_order)
+      VALUES (${data.skillType}, ${data.aspectKey}, ${data.labelId}, ${data.labelEn}, ${data.sortOrder})
+      RETURNING *
+    `;
+
+    const tableName = data.skillType === "speech" ? "speech_scores" 
+      : data.skillType === "computer" ? "computer_scores" 
+      : "discussion_scores";
+    
+    await sql.unsafe(`ALTER TABLE ${tableName} ADD COLUMN IF NOT EXISTS ${data.aspectKey} NUMERIC`);
+
+    return rows[0] as unknown as SkillAspect;
+  });
+
+// ── Delete skill aspect (admin only) ───────────────────────────────────
+export const deleteSkillAspectFn = createServerFn()
+  .inputValidator((data: { token: string; id: string }) => data)
+  .handler(async ({ data }) => {
+    const sql = getDb();
+    const me = verifyToken(data.token);
+    if (me.role !== "admin") throw new Error("Tidak punya akses");
+
+    // Note: We deliberately do NOT drop the column from the scores table to preserve old data
+    await sql`DELETE FROM skill_aspect_configs WHERE id = ${data.id}`;
+    return { success: true };
+  });

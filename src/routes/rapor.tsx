@@ -26,7 +26,8 @@ import {
 import jsPDF from "jspdf";
 import * as htmlToImage from "html-to-image";
 import { toast } from "sonner";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, FileSpreadsheet, Upload } from "lucide-react";
+import { exportExcelTemplateFn, importExcelScoresFn } from "@/lib/api/excel.functions";
 
 export const Route = createFileRoute("/rapor")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -70,12 +71,16 @@ function Rapor() {
 
   const [yearId, setYearId] = useState(search.yearId ?? "");
   const [studentId, setStudentId] = useState(search.studentId ?? "");
+  const [filterKelas, setFilterKelas] = useState("all");
+  const [searchName, setSearchName] = useState("");
+  
   const [blangkoOpen, setBlangkoOpen] = useState(false);
   const [blangkoKelas, setBlangkoKelas] = useState("4");
   const [blangkoRombel, setBlangkoRombel] = useState("");
   const [blangkoPrinting, setBlangkoPrinting] = useState(false);
-  const [isBlangkoMode, setIsBlangkoMode] = useState(false); // Default false, will print actual filled report cards
+  const [isBlangkoMode, setIsBlangkoMode] = useState(false);
   const [batchReportCards, setBatchReportCards] = useState<any[]>([]);
+  const [isExcelLoading, setIsExcelLoading] = useState(false);
 
   const { data: years } = useQuery({
     queryKey: ["academic-years"],
@@ -262,6 +267,72 @@ function Rapor() {
     }
   };
 
+  const handleUnduhExcel = async () => {
+    if (!yearId || !blangkoKelas) {
+      toast.error("Pilih tahun ajaran dan kelas");
+      return;
+    }
+    setIsExcelLoading(true);
+    toast.info("Sedang menyiapkan Excel...", { id: "excel-toast" });
+    try {
+      const res = await exportExcelTemplateFn({ data: { token: token!, academicYearId: yearId, classLevel: Number(blangkoKelas) } });
+      const byteCharacters = atob(res.base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Excel berhasil diunduh!", { id: "excel-toast" });
+    } catch (err: any) {
+      toast.error(err.message || "Gagal mengunduh Excel", { id: "excel-toast" });
+    } finally {
+      setIsExcelLoading(false);
+    }
+  };
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!yearId || !blangkoKelas) {
+      toast.error("Pilih tahun ajaran dan kelas terlebih dahulu sebelum import");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      // dataUrl format: data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,...
+      const base64 = dataUrl.split(",")[1];
+      if (!base64) {
+        toast.error("Format file tidak didukung");
+        return;
+      }
+      
+      setIsExcelLoading(true);
+      toast.info("Sedang mengimport nilai... Mohon tunggu", { id: "import-toast" });
+      try {
+        await importExcelScoresFn({ data: { token: token!, academicYearId: yearId, classLevel: Number(blangkoKelas), base64 } });
+        toast.success("Nilai berhasil di-import!", { id: "import-toast" });
+        // Refresh data
+        qc.invalidateQueries({ queryKey: ["report-card"] });
+      } catch (err: any) {
+        toast.error(err.message || "Gagal mengimport Excel", { id: "import-toast" });
+      } finally {
+        setIsExcelLoading(false);
+        // Reset file input
+        e.target.value = "";
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const numberToWords = (n: number): string => {
     const ones = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
                   "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
@@ -301,24 +372,36 @@ function Rapor() {
   };
   const sections = getSectionLetters(classLevel);
 
+  const filteredStudents = (studentList ?? []).filter((s: any) => {
+    if (filterKelas !== "all" && String(s.class_level) !== filterKelas) return false;
+    if (searchName && !s.full_name.toLowerCase().includes(searchName.toLowerCase())) return false;
+    return true;
+  });
+
   // ── Selector bar ─────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-secondary">
+    <div className="min-h-screen bg-secondary pb-32">
       {/* Toolbar */}
-      <div className="no-print sticky top-0 z-10 border-b bg-card">
-        <div className="mx-auto max-w-[210mm] flex items-center justify-between px-4 py-3 gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/dashboard">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Kembali
-            </Link>
-          </Button>
-          <div className="flex items-center gap-3 flex-1 justify-center">
+      <div className="no-print sticky top-0 z-10 border-b bg-card shadow-sm">
+        <div className="mx-auto max-w-[210mm] flex flex-col md:flex-row items-start md:items-center justify-between px-4 py-3 gap-3">
+          
+          {/* Top Row on Mobile: Back & Title */}
+          <div className="flex w-full md:w-auto items-center justify-between">
+            <Button variant="ghost" size="sm" asChild className="px-2">
+              <Link to="/dashboard">
+                <ArrowLeft className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Kembali</span>
+              </Link>
+            </Button>
+            <span className="md:hidden font-semibold text-sm">Preview Rapor</span>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 flex-1 w-full md:justify-center">
+            {/* Year & Class Filters */}
             <div className="flex items-center gap-2">
-              <Label className="text-xs shrink-0">Tahun Ajaran</Label>
               <Select value={yearId} onValueChange={(v) => { setYearId(v); setStudentId(""); }}>
-                <SelectTrigger className="h-8 w-36 text-xs">
-                  <SelectValue placeholder="Pilih tahun" />
+                <SelectTrigger className="h-9 flex-1 md:w-32 text-xs">
+                  <SelectValue placeholder="Tahun" />
                 </SelectTrigger>
                 <SelectContent>
                   {(years ?? []).map((y) => (
@@ -326,31 +409,57 @@ function Rapor() {
                   ))}
                 </SelectContent>
               </Select>
+              
+              <Select value={filterKelas} onValueChange={(v) => { setFilterKelas(v); setStudentId(""); }}>
+                <SelectTrigger className="h-9 flex-1 md:w-28 text-xs">
+                  <SelectValue placeholder="Kelas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Kelas</SelectItem>
+                  {[1,2,3,4,5].map(k => <SelectItem key={String(k)} value={String(k)}>Kelas {k}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+
+            {/* Name Search & Student Select */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1 md:flex-none">
+              <div className="relative flex-1 sm:w-40">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Cari nama..." 
+                  className="h-9 pl-8 text-xs" 
+                  value={searchName} 
+                  onChange={e => setSearchName(e.target.value)} 
+                />
+              </div>
               <Select value={studentId} onValueChange={setStudentId} disabled={!yearId}>
-                <SelectTrigger className="h-8 w-52 text-xs">
+                <SelectTrigger className="h-9 flex-1 sm:w-64 text-xs">
                   <SelectValue placeholder="Pilih santri..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {(studentList ?? []).map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.full_name} — Kelas {s.class_level}{s.rombel_name}
-                    </SelectItem>
-                  ))}
+                  {filteredStudents.length === 0 ? (
+                    <SelectItem value="none" disabled>Tidak ditemukan</SelectItem>
+                  ) : (
+                    filteredStudents.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.full_name} ({s.class_level}{s.rombel_name})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Pengaturan Cetak */}
+        </div>
+      </div>
+
+      {/* Floating Action Buttons */}
+      <div className="no-print fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <SettingsIcon className="h-4 w-4 mr-2" />
-                  Pengaturan Cetak
+                <Button variant="secondary" className="rounded-full shadow-lg h-12 px-4 gap-2 border">
+                  <SettingsIcon className="h-4 w-4" /> 
+                  <span className="hidden sm:inline">Pengaturan</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -395,38 +504,55 @@ function Rapor() {
             {/* Cetak Blangko / Rombel */}
             <Dialog open={blangkoOpen} onOpenChange={setBlangkoOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" id="btn-cetak-blangko" disabled={!yearId}>
-                  <FileDown className="h-4 w-4 mr-2" />
-                  Cetak Rombel / Blangko
+                <Button variant="secondary" className="rounded-full shadow-lg h-12 px-4 gap-2 border" disabled={!yearId}>
+                  <FileDown className="h-4 w-4" /> 
+                  <span className="hidden sm:inline">Unduh Blangko & Cetak Rombel</span>
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-xl">
                 <DialogHeader>
-                  <DialogTitle>Cetak Rapor Rombel</DialogTitle>
+                  <DialogTitle>Unduh Blangko & Cetak Rapor Rombel</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <DialogDescription className="text-sm text-muted-foreground">
-                    Cetak rapor untuk satu rombel penuh.
+                    Unduh Blangko (Template Excel) untuk satu tingkat kelas, atau Cetak Rapor (PDF) untuk satu rombel penuh.
                   </DialogDescription>
-                  <div className="flex items-center space-x-2 bg-muted p-2 rounded-md">
-                    <Switch id="is-blangko" checked={isBlangkoMode} onCheckedChange={setIsBlangkoMode} />
-                    <Label htmlFor="is-blangko" className="font-semibold text-xs">Cetak Blangko Saja (Hanya Template, Tanpa Nilai)</Label>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Kelas</Label>
-                    <Select value={blangkoKelas} onValueChange={(v) => { setBlangkoKelas(v); setBlangkoRombel(""); }}>
-                      <SelectTrigger id="blangko-kelas">
-                        <SelectValue placeholder="Pilih kelas" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1,2,3,4,5].map((k) => (
-                          <SelectItem key={k} value={String(k)}>Kelas {k}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Rombel</Label>
+                  <div className="flex flex-col sm:flex-row gap-4 border-b pb-4">
+                    {/* Bagian Excel (Tingkat Kelas) */}
+                    <div className="flex-1 space-y-3">
+                      <h4 className="font-semibold text-sm border-b pb-1">1. Unduh Blangko (Excel)</h4>
+                      <div className="space-y-2">
+                        <Label>Pilih Tingkat Kelas</Label>
+                        <Select value={blangkoKelas} onValueChange={(v) => { setBlangkoKelas(v); setBlangkoRombel(""); }}>
+                          <SelectTrigger id="blangko-kelas">
+                            <SelectValue placeholder="Pilih kelas" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1,2,3,4,5].map((k) => (
+                              <SelectItem key={k} value={String(k)}>Kelas {k}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="mt-4">
+                        <Button 
+                          variant="outline" 
+                          className="w-full" 
+                          onClick={handleUnduhExcel} 
+                          disabled={isExcelLoading || !yearId}
+                        >
+                          <FileSpreadsheet className="h-4 w-4 mr-2" />
+                          {isExcelLoading ? "Loading..." : "Unduh Template Excel (Per Kelas)"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Bagian PDF (Rombel) */}
+                    <div className="flex-1 space-y-3">
+                      <h4 className="font-semibold text-sm border-b pb-1">2. Cetak PDF (Per Rombel)</h4>
+
+                    <div className="space-y-2">
+                      <Label>Rombel</Label>
                     <Select value={blangkoRombel} onValueChange={setBlangkoRombel}>
                       <SelectTrigger id="blangko-rombel">
                         <SelectValue placeholder="Pilih rombel" />
@@ -458,19 +584,24 @@ function Rapor() {
                       className="bg-emerald-600 hover:bg-emerald-500"
                     >
                       <Printer className="h-4 w-4 mr-2" />
-                      {blangkoPrinting ? "Membuat PDF..." : (isBlangkoMode ? "Unduh Blangko" : "Unduh Rapor")}
+                      {blangkoPrinting ? "Membuat PDF..." : "Cetak Rapor (PDF)"}
                     </Button>
                   </div>
-                </div>
+                  </div>
+                    </div>
+                  </div>
+
               </DialogContent>
             </Dialog>
 
-            <Button size="sm" onClick={handleDownloadPDF} disabled={!reportCard}>
-              <Printer className="h-4 w-4 mr-2" />
+            <Button 
+              onClick={handleDownloadPDF} 
+              disabled={!reportCard}
+              className="rounded-full shadow-xl h-14 px-5 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+            >
+              <Printer className="h-5 w-5" /> 
               Cetak PDF
             </Button>
-          </div>
-        </div>
       </div>
 
       {/* States */}
@@ -607,6 +738,9 @@ function RaporSheet({
 
   const showComputer = classLevel >= 4;
   const showDiscussion = classLevel >= 5;  // Diskusi hanya Kelas 5
+  // Semua kelas dipaksa 1 halaman dan format kecil/minimalis
+  const needsPage2 = false;
+  const isSmall = true;
 
   // Build bar chart data for speech
   const speechChartData = speechScores.map((s: any) => ({
@@ -631,29 +765,30 @@ function RaporSheet({
     value: discussionScore ? Number(discussionScore[key] ?? 0) : 0,
   }));
 
+  // Full header with biodata (for page 1)
   const renderHeaderInfo = () => (
     <>
-      <div className="text-center pb-2">
-        <h1 className="text-[15pt] font-bold tracking-wide">
+      <div className="text-center pb-1">
+        <h1 className={`font-bold tracking-wide ${isSmall ? 'text-[12pt]' : 'text-[15pt]'}`}>
           RAUDHATUSSALAM ISLAMIC BOARDING SCHOOL
         </h1>
-        <p className="text-[10pt] mt-0.5">
+        <p className={`mt-0.5 ${isSmall ? 'text-[9pt]' : 'text-[10pt]'}`}>
           Gambangan, Mahato, Tambusai Utara, Rokan Hulu
         </p>
-        <h2 className="text-[12pt] font-bold mt-1">
+        <h2 className={`font-bold mt-1 ${isSmall ? 'text-[10.5pt]' : 'text-[12pt]'}`}>
           AFTERNOON LESSON ADVISORY COUNCIL
         </h2>
-        <p className="text-[11pt] mt-0.5">Student Report Sheet</p>
+        <p className={`mt-0.5 ${isSmall ? 'text-[10pt]' : 'text-[11pt]'}`}>Student Report Sheet</p>
       </div>
 
-      <hr className="border-black border-y-2 border-x-0 h-1 mb-4" />
+      <hr className={`border-black border-y-2 border-x-0 ${isSmall ? 'mb-2' : 'mb-4'}`} style={{height: isSmall ? '2px' : '4px'}} />
 
-      <div className="flex justify-between items-end mb-4 font-bold italic text-[11pt]">
+      <div className={`flex justify-between items-end font-bold italic ${isSmall ? 'mb-2 text-[10pt]' : 'mb-4 text-[11pt]'}`}>
         <div>Academic Year &nbsp;: &nbsp;&nbsp;&nbsp;{academicYear?.year || "2025/2026"}</div>
         <div className="mr-8">Semester &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: &nbsp;&nbsp;&nbsp;{semesterLabel}</div>
       </div>
 
-      <table className="w-full text-[11.5pt] mb-6 border-collapse font-serif">
+      <table className={`w-full border-collapse font-serif ${isSmall ? 'mb-3 text-[10.5pt]' : 'mb-6 text-[11.5pt]'}`}>
         <tbody>
           <tr>
             <td className="w-[14%] py-0.5 align-bottom">Name</td>
@@ -683,14 +818,86 @@ function RaporSheet({
     </>
   );
 
+  // Header only (school name, no biodata) — for page 2 of kelas 4-5
+  const renderHeaderOnly = () => (
+    <>
+      <div className="text-center pb-2">
+        <h1 className="text-[15pt] font-bold tracking-wide">
+          RAUDHATUSSALAM ISLAMIC BOARDING SCHOOL
+        </h1>
+        <p className="text-[10pt] mt-0.5">
+          Gambangan, Mahato, Tambusai Utara, Rokan Hulu
+        </p>
+        <h2 className="text-[12pt] font-bold mt-1">
+          AFTERNOON LESSON ADVISORY COUNCIL
+        </h2>
+        <p className="text-[11pt] mt-0.5">Student Report Sheet</p>
+      </div>
+
+      <hr className="border-black border-y-2 border-x-0 h-1 mb-4" />
+
+      <div className="flex justify-between items-end mb-2 text-[10pt] text-gray-600 italic">
+        <div>Student: <span className="font-bold text-black">{student?.full_name}</span></div>
+        <div>Class: <span className="font-bold text-black">{isBlangko ? `${classLevel}${student?.rombel_name ?? ""}` : `${reportCard?.placement?.class_level ?? ""}${reportCard?.placement?.rombel_name ?? ""}`}</span></div>
+      </div>
+    </>
+  );
+
   const pageStyle = {
     width: "210mm",
     height: "297mm",
-    padding: "14mm 16mm",
+    padding: isSmall ? "10mm 12mm" : "14mm 16mm",
     fontFamily: '"Times New Roman", Times, serif',
-    fontSize: "11pt",
-    lineHeight: 1.35,
+    fontSize: isSmall ? "10pt" : "11pt",
+    lineHeight: isSmall ? 1.25 : 1.35,
   };
+
+  // Shared Attendance section
+  const renderAttendance = () => (
+    <div className={isSmall ? "mt-3" : "mt-6"}>
+      <SectionTitle isSmall={isSmall}>{sections.attendance}. Student Attendance Record</SectionTitle>
+      <table className={`w-full border-collapse ${isSmall ? 'text-[9.5pt]' : 'text-[10.5pt]'}`}>
+        <thead>
+          <tr className="bg-sky-100/50">
+            <Th w="8%">No</Th>
+            <Th align="center">Attendance Details</Th>
+            <Th w="35%" colSpan={2}>Values</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {[
+            ["School Days", attendance?.school_days ?? "—"],
+            ["Present Days", attendance?.present ?? "—"],
+            ["Permission Days", attendance?.permission ?? "—"],
+            ["Absent Days", attendance?.absent ?? "—"],
+          ].map(([label, val], i) => (
+            <tr key={String(label)} className={i % 2 === 1 ? "bg-gray-50" : ""}>
+              <Td center>{i + 1}</Td>
+              <Td>{String(label)}</Td>
+              <Td center className="border-r-0 w-[20%]">{String(val)}</Td>
+              <Td center className="border-l-0 text-left w-[15%]">Days</Td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // Shared Signature section
+  const renderSignature = () => (
+    <div className={`${isSmall ? 'mt-4' : 'mt-10'} flex justify-end mr-4`}>
+      <div className={`text-center ${isSmall ? 'text-[10pt]' : 'text-[11pt]'}`} style={{ minWidth: 280 }}>
+        <p>Mahato, {new Date(printDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+        <p>Principal</p>
+        <div style={{ height: isSmall ? 60 : 80, position: "relative" }} className="flex justify-center items-center">
+          {showSignature && signatureImage && signatureImage.startsWith("data:image/") && (
+            <img src={signatureImage} alt="Signature" style={{ maxHeight: isSmall ? "60px" : "80px", maxWidth: "200px", objectFit: "contain" }} />
+          )}
+        </div>
+        <p className="font-bold">{headmasterName || "________________________"}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div id={id} className="flex flex-col gap-4">
@@ -699,8 +906,8 @@ function RaporSheet({
         {renderHeaderInfo()}
 
         {/* Section A — Academic */}
-      <SectionTitle>{sections.academic}. CORE SUBJECT</SectionTitle>
-      <table className="w-full border-collapse text-[10.5pt]">
+      <SectionTitle isSmall={isSmall}>{sections.academic}. CORE SUBJECT</SectionTitle>
+      <table className={`w-full border-collapse ${isSmall ? 'text-[9.5pt]' : 'text-[10.5pt]'}`}>
         <thead>
           <tr className="bg-sky-100/50">
             <Th w="6%" rowSpan={2}>No</Th>
@@ -717,7 +924,7 @@ function RaporSheet({
           {isBlangko ? (
             // Blangko: baris berdasarkan mapel kelas tersebut
             (blangkoSubjects?.length ? blangkoSubjects : Array.from({ length: 12 })).map((subj: any, i) => (
-              <tr key={i}>
+              <tr key={i} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
                 <Td center>{i + 1}</Td>
                 <Td>{subj?.name || "\u00A0"}</Td>
                 <Td center>&nbsp;</Td>
@@ -729,7 +936,7 @@ function RaporSheet({
             subjectScores.map((ss: any, i: number) => {
               const score = Number(ss.final_score ?? 0);
               return (
-                <tr key={ss.id}>
+                <tr key={ss.id} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
                   <Td center>{i + 1}</Td>
                   <Td>{ss.subject_name}</Td>
                   <Td center>{score ? score.toFixed(1) : "—"}</Td>
@@ -744,13 +951,13 @@ function RaporSheet({
             const avg = total / subjectScores.length;
             return (
               <>
-                <tr className="bg-gray-100 font-bold">
+                <tr className="bg-sky-50 font-bold">
                   <Td colSpan={2} center>Semester Final Grade</Td>
                   <Td center className="font-bold text-[11pt]">{total.toFixed(0)}</Td>
                   <Td center className="font-bold text-[11pt]">{numberToWords(Math.round(total))}</Td>
                   <Td center className="bg-white border-none"></Td>
                 </tr>
-                <tr className="bg-gray-100 font-bold">
+                <tr className="bg-sky-50 font-bold">
                   <Td colSpan={2} center className="border-none"></Td>
                   <Td center className="font-bold text-[11pt]">{avg.toFixed(1)}</Td>
                   <Td center className="font-bold text-[11pt]">{numberToWords(Math.round(avg))} point {Math.round((avg % 1)*10) === 4 ? "Four" : "Zero"}</Td>
@@ -761,13 +968,13 @@ function RaporSheet({
           })()}
           {isBlangko && (
             <>
-              <tr className="bg-gray-100 font-bold">
+              <tr className="bg-sky-50 font-bold">
                 <Td colSpan={2} center>Semester Final Grade</Td>
                 <Td center></Td>
                 <Td center></Td>
                 <Td center className="bg-white border-none"></Td>
               </tr>
-              <tr className="bg-gray-100 font-bold">
+              <tr className="bg-sky-50 font-bold">
                 <Td colSpan={2} center className="border-none"></Td>
                 <Td center></Td>
                 <Td center></Td>
@@ -779,8 +986,8 @@ function RaporSheet({
       </table>
 
       {/* Section B — Speech */}
-      <div className="mt-6">
-        <SectionTitle>{sections.speech}. Applied Speech Skill</SectionTitle>
+      <div className="mt-2">
+        <SectionTitle isSmall={isSmall}>{sections.speech}. Applied Speech Skill</SectionTitle>
         {isBlangko ? (
           <BlangkoSkillSection
             aspects={Object.entries(speechLabels).map(([k, v]) => v)}
@@ -788,25 +995,8 @@ function RaporSheet({
           />
         ) : (
           speechScores.length > 0 && (
-            <div className="mt-2 px-6 relative">
-              <div style={{ width: "100%", height: 160 }}>
-                {/* Selalu Bar Chart untuk semua kelas (1-5) */}
-                <ResponsiveContainer>
-                  <BarChart
-                    data={speechChartData}
-                    layout="vertical"
-                    margin={{ left: 100, right: 30, top: 10, bottom: 10 }}
-                  >
-                    <XAxis type="number" domain={[0, 100]} tickCount={6} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#666" }} />
-                    <YAxis dataKey="lang" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#333", fontStyle: "italic" }} width={120} />
-                    <Bar dataKey="value" fill="#4f81bd" barSize={18}>
-                      <LabelList dataKey="value" position="right" style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }} formatter={(val: number) => val ? val.toFixed(1) : "—"} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              {/* Detail aspek pidato */}
-              <table className="w-full border-collapse text-[9.5pt] mt-2">
+            <div className="mt-1">
+              <table className="w-full border-collapse text-[9.5pt]">
                 <thead>
                   <tr className="bg-sky-50">
                     <Th w="22%">Language</Th>
@@ -817,12 +1007,12 @@ function RaporSheet({
                   </tr>
                 </thead>
                 <tbody>
-                  {speechScores.map((s: any) => {
+                  {speechScores.map((s: any, idx: number) => {
                     const aspectKeys = Object.keys(speechLabels);
                     const vals = aspectKeys.map((k) => Number(s[k] ?? 0));
                     const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
                     return (
-                      <tr key={s.language}>
+                      <tr key={s.language} className={idx % 2 === 1 ? "bg-gray-50/50" : ""}>
                         <Td>{s.language}</Td>
                         {aspectKeys.map((k) => (
                           <Td key={k} center>{s[k] != null ? Number(s[k]).toFixed(1) : "—"}</Td>
@@ -838,147 +1028,107 @@ function RaporSheet({
         )}
       </div>
 
-      {/* Section C — Computer (Kelas 4 & 5) — di halaman 1, setelah Speech */}
-      {showComputer && (
-        <div className="mt-6">
-          <SectionTitle>{sections.computer}. Computer Practical Skill</SectionTitle>
-          {isBlangko ? (
-            <BlangkoSkillBarTable labels={Object.values(computerLabels)} />
-          ) : (
-            computerScore ? (
-              <SkillBarSection
-                data={computerChartData}
-                score={computerScore.final_score}
-              />
+
+
+      {/* Section C & D (Kelas 4 & 5) — Side by Side */}
+      <div className="flex gap-4 mt-2">
+        {showComputer && (
+          <div className="flex-1">
+            <SectionTitle isSmall={isSmall}>{sections.computer}. Computer Practical Skill</SectionTitle>
+            {isBlangko ? (
+              <BlangkoSkillBarTable labels={Object.values(computerLabels)} />
             ) : (
-              <p className="text-[10pt] italic text-gray-400 mt-2 px-2">
-                — Belum ada nilai praktik komputer —
-              </p>
-            )
-          )}
-        </div>
-      )}
-
-      {/* Section D — Discussion (Kelas 5) — di halaman 1, setelah Computer */}
-      {showDiscussion && (
-        <div className="mt-6">
-          <SectionTitle>{sections.discussion}. Discussion Skill</SectionTitle>
-          {isBlangko ? (
-            <BlangkoSkillBarTable labels={Object.values(discussionLabels)} />
-          ) : (
-            discussionScore ? (
-              <SkillBarSection
-                data={discussionChartData}
-                score={discussionScore.final_score}
-              />
-            ) : (
-              <p className="text-[10pt] italic text-gray-400 mt-2 px-2">
-                — Belum ada nilai diskusi —
-              </p>
-            )
-          )}
-        </div>
-      )}
-      </div>
-
-      {/* PAGE 2 — Setelah kop langsung Attendance */}
-      <div className="print-page print-area bg-white text-black border shadow-sm relative overflow-hidden" style={pageStyle}>
-        {renderHeaderInfo()}
-
-        {/* Section Attendance — langsung setelah kop */}
-        <div className="mt-6">
-          <SectionTitle>{sections.attendance}. Student Attendance Record</SectionTitle>
-          <table className="w-full border-collapse text-[10.5pt]">
-            <thead>
-              <tr className="bg-sky-100/50">
-                <Th w="8%">No</Th>
-                <Th align="center">Attendance Details</Th>
-                <Th w="35%" colSpan={2}>Values</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["School Days", attendance?.school_days ?? "—"],
-                ["Present Days", attendance?.present ?? "—"],
-                ["Permission Days", attendance?.permission ?? "—"],
-                ["Absent Days", attendance?.absent ?? "—"],
-              ].map(([label, val], i) => (
-                <tr key={String(label)}>
-                  <Td center>{i + 1}</Td>
-                  <Td>{String(label)}</Td>
-                  <Td center className="border-r-0 w-[20%]">{String(val)}</Td>
-                  <Td center className="border-l-0 text-left w-[15%]">Days</Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Signature */}
-        <div className="mt-10 flex justify-end mr-4">
-          <div className="text-center text-[11pt]" style={{ minWidth: 280 }}>
-            <p>Mahato, {new Date(printDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
-            <p>Principal</p>
-            <div style={{ height: 80, position: "relative" }} className="flex justify-center items-center">
-              {showSignature && signatureImage && (
-                <img src={signatureImage} alt="Signature" style={{ maxHeight: "80px", maxWidth: "200px", objectFit: "contain" }} />
-              )}
-            </div>
-            <p className="font-bold">{headmasterName || "________________________"}</p>
+              computerScore ? (
+                <SkillTableSection
+                  data={computerChartData}
+                  score={computerScore.final_score}
+                />
+              ) : (
+                <p className="text-[9pt] italic text-gray-400 mt-1">
+                  — Belum ada nilai praktik komputer —
+                </p>
+              )
+            )}
           </div>
-        </div>
+        )}
+
+        {showDiscussion && (
+          <div className="flex-1">
+            <SectionTitle isSmall={isSmall}>{sections.discussion}. Discussion Skill</SectionTitle>
+            {isBlangko ? (
+              <BlangkoSkillBarTable labels={Object.values(discussionLabels)} />
+            ) : (
+              discussionScore ? (
+                <SkillTableSection
+                  data={discussionChartData}
+                  score={discussionScore.final_score}
+                />
+              ) : (
+                <p className="text-[9pt] italic text-gray-400 mt-1">
+                  — Belum ada nilai diskusi —
+                </p>
+              )
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Attendance & Signature at the bottom of the page */}
+      {!needsPage2 && (
+        <>
+          {renderAttendance()}
+          {renderSignature()}
+        </>
+      )}
+
+      </div>
+
+      {/* PAGE 2 — Only for Kelas 4-5 (Attendance + Signature) */}
+      {needsPage2 && (
+        <div className="print-page print-area bg-white text-black border shadow-sm relative overflow-hidden" style={pageStyle}>
+          {renderHeaderOnly()}
+
+          {/* Section Attendance — langsung setelah kop */}
+          {renderAttendance()}
+
+          {/* Signature */}
+          {renderSignature()}
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Skill bar chart section untuk rapor berisi nilai (Kelas 4 & 5) ─────
-function SkillBarSection({
+// ── Skill table section (replaces Bar Chart for minimalistic look) ─────
+function SkillTableSection({
   data, score,
 }: {
-  data: { name: string; value: number }[];
+  data: { aspect?: string; name?: string; value: number }[];
   score: number | null;
 }) {
-  const COLORS = ["#4f81bd", "#c0504d", "#9bbb59", "#8064a2", "#4bacc6"];
-
   return (
-    <div className="mt-2 px-4">
-      <div style={{ width: "100%", height: 160 }}>
-        <ResponsiveContainer>
-          <BarChart
-            data={data}
-            layout="vertical"
-            margin={{ left: 100, right: 50, top: 5, bottom: 5 }}
-          >
-            <XAxis type="number" domain={[0, 100]} tickCount={6} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#666" }} />
-            <YAxis
-              dataKey="name"
-              type="category"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 9.5, fill: "#333" }}
-              width={110}
-            />
-            <Bar dataKey="value" barSize={13} radius={[0, 2, 2, 0]}>
-              {data.map((_, index) => (
-                <rect key={index} fill={COLORS[index % COLORS.length]} />
-              ))}
-              <LabelList
-                dataKey="value"
-                position="right"
-                style={{ fontSize: 10, fill: "#333", fontWeight: "bold" }}
-                formatter={(val: number) => val ? val.toFixed(1) : "—"}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      {score != null && (
-        <p className="text-right text-[10pt] font-semibold pr-4 whitespace-nowrap">
-          Average Score: {Number(score).toFixed(1)}
-        </p>
-      )}
-    </div>
+    <table className="w-full border-collapse text-[9.5pt] mt-1">
+      <thead>
+        <tr className="bg-sky-50">
+          <Th w="6%">No</Th>
+          <Th align="center">Aspect</Th>
+          <Th w="20%">Score</Th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((item, i) => (
+          <tr key={item.aspect || item.name} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
+            <Td center>{i + 1}</Td>
+            <Td>{item.aspect || item.name}</Td>
+            <Td center>{item.value ? item.value.toFixed(1) : "—"}</Td>
+          </tr>
+        ))}
+        <tr className="bg-sky-50 font-bold">
+          <Td colSpan={2} center>Average</Td>
+          <Td center>{score != null ? Number(score).toFixed(1) : "—"}</Td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 
@@ -1037,8 +1187,8 @@ function BlangkoSkillBarTable({ labels }: { labels: string[] }) {
 }
 
 // ── Reusable table primitives ─────────────────────────────────────────
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mt-5 mb-2 text-[11.5pt] font-bold border-b border-black">{children}</h3>;
+function SectionTitle({ children, isSmall }: { children: React.ReactNode, isSmall?: boolean }) {
+  return <h3 className={`${isSmall ? 'mt-3 mb-1 text-[10.5pt]' : 'mt-5 mb-2 text-[11.5pt]'} font-bold border-b border-black`}>{children}</h3>;
 }
 
 function Th({

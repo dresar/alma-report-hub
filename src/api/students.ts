@@ -26,7 +26,7 @@ export const getStudentsFn = createServerFn()
     if (data.academicYearId || data.classLevel !== undefined || data.rombelId) {
       const rows = await sql`
         SELECT s.*, r.id as rombel_id, r.name as rombel_name, c.level as class_level,
-               ay.year as academic_year, COUNT(*) OVER() as full_count
+               ay.id as academic_year_id, ay.year as academic_year, COUNT(*) OVER() as full_count
         FROM students s
         JOIN student_rombels sr ON sr.student_id = s.id
         JOIN rombels r ON r.id = sr.rombel_id
@@ -47,12 +47,18 @@ export const getStudentsFn = createServerFn()
     }
 
     const rows = await sql`
-      SELECT *, COUNT(*) OVER() as full_count FROM students
-      WHERE (${data.status || null}::text IS NULL OR status = ${data.status || null})
+      SELECT s.*, r.id as rombel_id, r.name as rombel_name, c.level as class_level,
+             ay.id as academic_year_id, ay.year as academic_year, COUNT(*) OVER() as full_count
+      FROM students s
+      LEFT JOIN student_rombels sr ON sr.student_id = s.id AND sr.academic_year_id = (SELECT id FROM academic_years WHERE is_active = true LIMIT 1)
+      LEFT JOIN rombels r ON r.id = sr.rombel_id
+      LEFT JOIN classes c ON c.id = r.class_id
+      LEFT JOIN academic_years ay ON ay.id = sr.academic_year_id
+      WHERE (${data.status || null}::text IS NULL OR s.status = ${data.status || null})
         AND (${data.q || null}::text IS NULL
-             OR full_name ILIKE ${"%" + (data.q || "") + "%"}
-             OR stambuk ILIKE ${"%" + (data.q || "") + "%"})
-      ORDER BY full_name
+             OR s.full_name ILIKE ${"%" + (data.q || "") + "%"}
+             OR s.stambuk ILIKE ${"%" + (data.q || "") + "%"})
+      ORDER BY s.full_name
       LIMIT ${parsedLimit} OFFSET ${offset}
     `;
     const totalCount = rows.length > 0 ? parseInt(String(rows[0].full_count)) : 0;
@@ -149,6 +155,8 @@ export const updateStudentFn = createServerFn()
     address?: string;
     entryYear?: string;
     status?: string;
+    rombelId?: string;
+    academicYearId?: string;
   }) => data)
   .handler(async ({ data }) => {
     const sql = getDb();
@@ -167,6 +175,20 @@ export const updateStudentFn = createServerFn()
       WHERE id = ${data.studentId}
       RETURNING *
     `;
+    if (data.academicYearId) {
+      if (data.rombelId) {
+        await sql`
+          INSERT INTO student_rombels (student_id, rombel_id, academic_year_id)
+          VALUES (${data.studentId}, ${data.rombelId}, ${data.academicYearId})
+          ON CONFLICT (student_id, academic_year_id) DO UPDATE SET rombel_id = EXCLUDED.rombel_id
+        `;
+      } else {
+        await sql`
+          DELETE FROM student_rombels
+          WHERE student_id = ${data.studentId} AND academic_year_id = ${data.academicYearId}
+        `;
+      }
+    }
     return rows[0] ? { ...rows[0] } : null;
   });
 
@@ -206,4 +228,81 @@ export const assignRombelFn = createServerFn()
       RETURNING *
     `;
     return rows[0];
+  });
+
+// ── Migrate rombels: copy placements from one year to another ──────────
+export const migrateRombelsFn = createServerFn()
+  .inputValidator((data: {
+    token: string;
+    sourceYearId: string;
+    targetYearId: string;
+    mode: "same" | "naik"; // "same" = keep same rombel; "naik" = promote class level
+  }) => data)
+  .handler(async ({ data }) => {
+    const sql = getDb();
+    const me = verifyToken(data.token);
+    if (me.role !== "admin") throw new Error("Tidak punya akses");
+
+    // Get all placements from source year
+    const sourcePlacements = await sql`
+      SELECT sr.student_id, sr.rombel_id, r.name as rombel_name, c.level as class_level, r.class_id
+      FROM student_rombels sr
+      JOIN rombels r ON r.id = sr.rombel_id
+      JOIN classes c ON c.id = r.class_id
+      WHERE sr.academic_year_id = ${data.sourceYearId}
+      ORDER BY c.level, r.name
+    `;
+
+    if (sourcePlacements.length === 0) {
+      throw new Error("Tidak ada data santri di tahun ajaran sumber");
+    }
+
+    let migratedCount = 0;
+    let skippedCount = 0;
+
+    for (const sp of sourcePlacements) {
+      let targetRombelId = sp.rombel_id;
+
+      if (data.mode === "naik") {
+        const currentLevel = Number(sp.class_level);
+        if (currentLevel >= 5) {
+          // Kelas 5 sudah lulus — skip
+          skippedCount++;
+          continue;
+        }
+        const nextLevel = currentLevel + 1;
+        // Find rombel with same name (A/B/C/D) at next level
+        const nextRombels = await sql`
+          SELECT r.id FROM rombels r
+          JOIN classes c ON c.id = r.class_id
+          WHERE c.level = ${nextLevel} AND r.name = ${sp.rombel_name}
+          LIMIT 1
+        `;
+        if (nextRombels.length === 0) {
+          // If no matching rombel name, try any rombel at next level
+          const anyRombel = await sql`
+            SELECT r.id FROM rombels r
+            JOIN classes c ON c.id = r.class_id
+            WHERE c.level = ${nextLevel}
+            ORDER BY r.name LIMIT 1
+          `;
+          if (anyRombel.length === 0) {
+            skippedCount++;
+            continue;
+          }
+          targetRombelId = anyRombel[0].id;
+        } else {
+          targetRombelId = nextRombels[0].id;
+        }
+      }
+
+      await sql`
+        INSERT INTO student_rombels (student_id, rombel_id, academic_year_id)
+        VALUES (${sp.student_id}, ${targetRombelId}, ${data.targetYearId})
+        ON CONFLICT (student_id, academic_year_id) DO UPDATE SET rombel_id = EXCLUDED.rombel_id
+      `;
+      migratedCount++;
+    }
+
+    return { migratedCount, skippedCount, totalSource: sourcePlacements.length };
   });

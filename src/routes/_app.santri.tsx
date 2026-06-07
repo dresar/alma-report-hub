@@ -17,8 +17,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Search, Trash2, UserPlus, ChevronRight, ArrowLeft, Save, X,
-  Download, Upload, FileText, FileSpreadsheet, PlusCircle
+  Download, Upload, FileText, FileSpreadsheet, GraduationCap,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
@@ -44,7 +47,7 @@ const EMPTY_FORM = {
   stambuk: "", fullName: "", gender: "L" as "L" | "P",
   birthPlace: "", birthDate: "", parentName: "", address: "",
   entryYear: "", status: "Aktif" as "Aktif" | "Alumni" | "Pindah",
-  rombelId: "", academicYearId: "",
+  rombelId: "",
 };
 
 function SantriPage() {
@@ -56,12 +59,16 @@ function SantriPage() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
+  // State for inline quick-edit class popover in the table
+  const [quickEditId, setQuickEditId] = useState<string | null>(null);
+  const [quickRombelId, setQuickRombelId] = useState<string>("");
 
   // ── Data ────────────────────────────────────────────────────
   const { data: years } = useQuery({
     queryKey: ["academic-years"],
     queryFn: () => getAcademicYearsFn(),
     enabled: !!token,
+    staleTime: 5 * 60 * 1000, // 5 menit
   });
 
   const activeYear = years?.find((y) => y.is_active);
@@ -70,23 +77,24 @@ function SantriPage() {
     queryKey: ["rombels"],
     queryFn: () => getRombelsFn({ data: {} }),
     enabled: !!token,
+    staleTime: 5 * 60 * 1000,
   });
+
+  const PAGE_SIZE = 20;
 
   const { data: studentsRes, isLoading } = useQuery({
-    queryKey: ["students", activeYear?.id, q], // removed page dependency
+    queryKey: ["students", q, page],
     queryFn: () =>
       getStudentsFn({
-        data: { token: token!, academicYearId: activeYear?.id, q: q || undefined, page: 1, limit: 999999 },
+        data: { token: token!, q: q || undefined, page, limit: PAGE_SIZE },
       }),
-    enabled: !!token && !!activeYear,
+    enabled: !!token,
+    staleTime: 30 * 1000, // 30 detik
   });
 
-  const allStudents = studentsRes?.data ?? [];
-  const totalStudents = allStudents.length;
-  const totalPages = Math.ceil(totalStudents / 20);
-  
-  // Client-side slice
-  const students = allStudents.slice((page - 1) * 20, page * 20);
+  const students = studentsRes?.data ?? [];
+  const totalStudents = studentsRes?.total ?? 0;
+  const totalPages = Math.ceil(totalStudents / PAGE_SIZE);
 
   // ── Mutations ────────────────────────────────────────────────
   const createMut = useMutation({
@@ -148,7 +156,6 @@ function SantriPage() {
       entryYear: (s.entry_year as string) ?? "",
       status: (s.status as "Aktif" | "Alumni" | "Pindah") ?? "Aktif",
       rombelId: (s.rombel_id as string) ?? "",
-      academicYearId: activeYear?.id ?? "",
     });
     setView("edit");
   }
@@ -158,11 +165,24 @@ function SantriPage() {
       toast.error("Stambuk dan nama wajib diisi");
       return;
     }
+    const yearId = activeYear?.id || "";
     if (view === "add") {
-      createMut.mutate({ ...form, academicYearId: activeYear?.id ?? "" });
+      createMut.mutate({ ...form, academicYearId: yearId } as any);
     } else {
-      updateMut.mutate(form);
+      updateMut.mutate({ ...form, academicYearId: yearId } as any);
     }
+  }
+
+  function handleQuickSaveClass(studentId: string) {
+    updateMut.mutate(
+      { token: token!, studentId, rombelId: quickRombelId, academicYearId: activeYear?.id || "" } as any,
+      {
+        onSuccess: () => {
+          setQuickEditId(null);
+          toast.success("Kelas santri diperbarui");
+        },
+      }
+    );
   }
 
   const setF = useCallback(
@@ -173,7 +193,7 @@ function SantriPage() {
 
   // ── Export / Import ──────────────────────────────────────────
   function exportExcel() {
-    const data = allStudents.map(s => ({
+    const data = students.map(s => ({
       Stambuk: s.stambuk,
       "Nama Lengkap": s.full_name,
       "Jenis Kelamin": s.gender,
@@ -228,9 +248,9 @@ function SantriPage() {
             address: row["Alamat"] ?? "",
             entryYear: String(row["Tahun Masuk"] ?? ""),
             status: (row["Status"] ?? "Aktif") as "Aktif",
-            rombelId: "", 
-            academicYearId: activeYear?.id ?? ""
-          });
+            rombelId: "",
+            academicYearId: activeYear?.id ?? "",
+          } as any);
           success++;
         } catch (err) {
           console.error(err);
@@ -267,13 +287,13 @@ function SantriPage() {
     doc.setFontSize(16);
     doc.text("Daftar Santri", 14, 22);
     doc.setFontSize(10);
-    doc.text(`Tahun Ajaran: ${activeYear?.year || "-"}`, 14, 30);
+    doc.text(`Tahun Ajaran: Semua`, 14, 30);
     doc.text(`Total: ${totalStudents} santri`, 14, 35);
 
     autoTable(doc, {
       startY: 40,
       head: [["Stambuk", "Nama Lengkap", "L/P", "Kelas", "Status"]],
-      body: allStudents.map((s) => [
+      body: students.map((s) => [
         s.stambuk,
         s.full_name,
         s.gender,
@@ -377,13 +397,17 @@ function SantriPage() {
             {/* Penempatan */}
             <section>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                Penempatan Kelas ({activeYear?.year})
+                Penempatan Kelas
               </h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Penempatan kelas menggunakan tahun ajaran aktif: <strong>{activeYear?.year ?? "—"}</strong>
+              </p>
               <div className="grid md:grid-cols-2 gap-4">
-                <Field label="Rombel">
-                  <Select value={form.rombelId} onValueChange={(v) => setF("rombelId", v)}>
+                <Field label="Kelas / Rombel">
+                  <Select value={form.rombelId || "__none__"} onValueChange={(v) => setF("rombelId", v === "__none__" ? "" : v)}>
                     <SelectTrigger id="rombelId"><SelectValue placeholder="Pilih rombel" /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__none__">— Tidak Ada / Kosongkan —</SelectItem>
                       {rombelOptions.map((r) => (
                         <SelectItem key={r.id} value={r.id}>
                           Kelas {r.class_level}{r.name}
@@ -426,7 +450,7 @@ function SantriPage() {
         <div>
           <CardTitle className="text-base">Daftar Santri</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            {activeYear?.year} · Total: {totalStudents} santri
+            Total: {totalStudents} santri
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -537,11 +561,60 @@ function SantriPage() {
                 <TableCell className="font-medium">{s.full_name}</TableCell>
                 <TableCell>{s.gender === "L" ? "L" : "P"}</TableCell>
                 <TableCell>
-                  {s.class_level != null ? (
-                    <Badge variant="secondary">Kelas {s.class_level}{s.rombel_name}</Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
+                  <Popover
+                    open={quickEditId === s.id}
+                    onOpenChange={(open) => {
+                      if (open) {
+                        setQuickEditId(s.id);
+                        setQuickRombelId((s.rombel_id as string) ?? "");
+                      } else {
+                        setQuickEditId(null);
+                      }
+                    }}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        className="group flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted transition-colors"
+                        title="Klik untuk ganti kelas"
+                      >
+                        {s.class_level != null ? (
+                          <Badge variant="secondary" className="group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                            Kelas {s.class_level}{s.rombel_name}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <GraduationCap className="h-3 w-3" /> Atur Kelas
+                          </span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-3 space-y-3" align="start">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ganti Kelas</p>
+                      <Select
+                        value={quickRombelId || "__none__"}
+                        onValueChange={(v) => setQuickRombelId(v === "__none__" ? "" : v)}
+                      >
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Pilih kelas" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Kosongkan —</SelectItem>
+                          {rombelOptions.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              Kelas {r.class_level}{r.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        className="w-full h-7 text-xs bg-emerald-600 hover:bg-emerald-500"
+                        onClick={() => handleQuickSaveClass(s.id)}
+                        disabled={updateMut.isPending}
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        {updateMut.isPending ? "Menyimpan..." : "Simpan"}
+                      </Button>
+                    </PopoverContent>
+                  </Popover>
                 </TableCell>
                 <TableCell>
                   <Badge

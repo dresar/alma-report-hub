@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, LayoutGrid, TrendingUp } from "lucide-react";
+import { Users, GraduationCap, LayoutGrid, TrendingUp, DownloadCloud, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -14,6 +16,8 @@ import { getDashboardStatsFn } from "@/lib/api/dashboard.functions";
 import { getTopStudentsFn } from "@/lib/api/dashboard.functions";
 import { getValueTrendFn } from "@/lib/api/dashboard.functions";
 import { getAcademicYearsFn } from "@/lib/api/academic-years.functions";
+import { getSyncDataFn } from "@/lib/api/sync.functions";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — SIRA" }] }),
@@ -22,6 +26,60 @@ export const Route = createFileRoute("/_app/dashboard")({
 
 function Dashboard() {
   const { token } = useAuth();
+  const queryClient = useQueryClient();
+
+  const syncMutation = useMutation({
+    mutationFn: () => getSyncDataFn({ data: { token: token! } }),
+    onSuccess: (res) => {
+      // Seed Global Data
+      queryClient.setQueryData(["academic-years"], res.academicYears);
+      queryClient.setQueryData(["rombels"], res.rombels);
+      queryClient.setQueryData(["skill-aspects"], res.skillAspects);
+      queryClient.setQueryData(["subjects"], res.subjects);
+
+      const activeYearId = res.academicYears.find(y => y.is_active)?.id;
+      if (!activeYearId) {
+        toast.success("Data master berhasil disinkronkan!");
+        return;
+      }
+
+      // Seed specific query keys used by the app to eliminate loading screens
+      for (const rombel of res.rombels) {
+        const studentIds = res.studentRombels
+          .filter(sr => sr.rombel_id === rombel.id && sr.academic_year_id === activeYearId)
+          .map(sr => sr.student_id);
+        const rombelStudents = res.students.filter(s => studentIds.includes(s.id));
+        
+        queryClient.setQueryData(["students", activeYearId, rombel.id], rombelStudents);
+        
+        const sScores = res.subjectScores.filter(s => s.academic_year_id === activeYearId && studentIds.includes(s.student_id));
+        queryClient.setQueryData(["subject-scores", activeYearId, rombel.id], { students: rombelStudents, subjects: res.subjects, scores: sScores });
+
+        const spScores = res.speechScores.filter(s => s.academic_year_id === activeYearId && studentIds.includes(s.student_id));
+        queryClient.setQueryData(["speech-scores", activeYearId, rombel.id], { students: rombelStudents, scores: spScores });
+
+        const cScores = res.computerScores.filter(s => s.academic_year_id === activeYearId && studentIds.includes(s.student_id));
+        queryClient.setQueryData(["computer-scores", activeYearId, rombel.id], { students: rombelStudents, scores: cScores });
+
+        const dScores = res.discussionScores.filter(s => s.academic_year_id === activeYearId && studentIds.includes(s.student_id));
+        queryClient.setQueryData(["discussion-scores", activeYearId, rombel.id], { students: rombelStudents, scores: dScores });
+
+        const attScores = res.attendance.filter(s => s.academic_year_id === activeYearId && studentIds.includes(s.student_id));
+        queryClient.setQueryData(["attendance", activeYearId, rombel.id], { students: rombelStudents, attendance: attScores });
+      }
+
+      for (const student of res.students) {
+        queryClient.setQueryData(["student", student.id], student);
+      }
+
+      toast.success("Database berhasil disinkronkan!", {
+        description: "Aplikasi sekarang akan berjalan super cepat tanpa loading.",
+      });
+    },
+    onError: (err) => {
+      toast.error("Gagal sinkronisasi", { description: err.message });
+    }
+  });
 
   const { data: years } = useQuery({
     queryKey: ["academic-years"],
@@ -95,13 +153,30 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Active Year Badge */}
-      {activeYear && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Tahun Ajaran Aktif:</span>
-          <Badge variant="outline" className="font-semibold">{activeYear.year}</Badge>
-        </div>
-      )}
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {activeYear ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Tahun Ajaran Aktif:</span>
+            <Badge variant="outline" className="font-semibold">{activeYear.year}</Badge>
+          </div>
+        ) : (
+          <div></div>
+        )}
+        <Button 
+          variant="outline" 
+          onClick={() => syncMutation.mutate()} 
+          disabled={syncMutation.isPending}
+          className="bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-400"
+        >
+          {syncMutation.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <DownloadCloud className="w-4 h-4 mr-2" />
+          )}
+          {syncMutation.isPending ? "Sinkronisasi..." : "Sinkronisasi Semua Data"}
+        </Button>
+      </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

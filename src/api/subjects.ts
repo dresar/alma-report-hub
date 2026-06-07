@@ -36,6 +36,12 @@ export const createSubjectFn = createServerFn()
     const rows = await sql`
       INSERT INTO subjects (name, class_level, bobot_tugas, bobot_uts, bobot_uas, sort_order)
       VALUES (${data.name}, ${data.classLevel}, ${data.bobotTugas}, ${data.bobotUts}, ${data.bobotUas}, ${data.sortOrder ?? 0})
+      ON CONFLICT (name, class_level) DO UPDATE SET
+        is_active = true,
+        bobot_tugas = EXCLUDED.bobot_tugas,
+        bobot_uts = EXCLUDED.bobot_uts,
+        bobot_uas = EXCLUDED.bobot_uas,
+        sort_order = EXCLUDED.sort_order
       RETURNING *
     `;
     return rows[0] ? { ...rows[0] } : null;

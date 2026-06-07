@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, Trash2, Plus, DatabaseZap } from "lucide-react";
+import { Check, Trash2, Plus, DatabaseZap, ArrowRightLeft } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import {
   migrateSemesterColumnFn,
   SEMESTER_LABELS,
 } from "@/lib/api/academic-years.functions";
+import { migrateRombelsFn } from "@/lib/api/students.functions";
 
 export const Route = createFileRoute("/_app/admin/tahun-ajaran")({
   component: TahunAjaranPage,
@@ -37,6 +38,9 @@ function TahunAjaranPage() {
   const qc = useQueryClient();
   const [newYear, setNewYear] = useState("");
   const [newSemester, setNewSemester] = useState<"1" | "2">("1");
+  const [migrateSource, setMigrateSource] = useState("");
+  const [migrateTarget, setMigrateTarget] = useState("");
+  const [migrateMode, setMigrateMode] = useState<"same" | "naik">("same");
 
   const { data: years } = useQuery({
     queryKey: ["academic-years"],
@@ -81,6 +85,17 @@ function TahunAjaranPage() {
       toast.success("Migrasi kolom semester berhasil!");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal migrasi"),
+  });
+
+  const migrateRombelMut = useMutation({
+    mutationFn: () => migrateRombelsFn({
+      data: { token: token!, sourceYearId: migrateSource, targetYearId: migrateTarget, mode: migrateMode },
+    }),
+    onSuccess: (result: any) => {
+      qc.invalidateQueries({ queryKey: ["students"] });
+      toast.success(`Berhasil! ${result.migratedCount} santri dipindahkan, ${result.skippedCount} dilewati.`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal migrasi rombel"),
   });
 
   // Group by year untuk tampilan yang lebih rapi
@@ -191,6 +206,83 @@ function TahunAjaranPage() {
                 <div className="rounded-lg border bg-violet-50 dark:bg-violet-950 p-3 text-sm">
                   <div className="font-semibold text-violet-700 dark:text-violet-300">Semester 2 — Tsaniyah (Genap)</div>
                   <div className="text-xs text-muted-foreground mt-0.5">Januari — Juni · Second Semester</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Migrasi Santri */}
+          <Card className="border shadow-none bg-muted/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <ArrowRightLeft className="h-4 w-4" />
+                Migrasi Santri ke Tahun Ajaran Baru
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Salin penempatan rombel santri dari tahun ajaran lama ke baru. Tidak perlu input ulang satu per satu.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tahun Sumber</Label>
+                  <Select value={migrateSource} onValueChange={setMigrateSource}>
+                    <SelectTrigger><SelectValue placeholder="Pilih sumber" /></SelectTrigger>
+                    <SelectContent>
+                      {(years ?? []).map((y) => (
+                        <SelectItem key={y.id} value={y.id}>
+                          {y.year} — {semesterLabel(y.semester ?? 1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tahun Tujuan</Label>
+                  <Select value={migrateTarget} onValueChange={setMigrateTarget}>
+                    <SelectTrigger><SelectValue placeholder="Pilih tujuan" /></SelectTrigger>
+                    <SelectContent>
+                      {(years ?? []).filter(y => y.id !== migrateSource).map((y) => (
+                        <SelectItem key={y.id} value={y.id}>
+                          {y.year} — {semesterLabel(y.semester ?? 1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Mode</Label>
+                  <Select value={migrateMode} onValueChange={(v) => setMigrateMode(v as "same" | "naik")}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="same">
+                        <span className="font-medium">Rombel Sama</span>
+                      </SelectItem>
+                      <SelectItem value="naik">
+                        <span className="font-medium">Naik Kelas</span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={() => migrateRombelMut.mutate()}
+                    disabled={!migrateSource || !migrateTarget || migrateRombelMut.isPending}
+                    className="bg-blue-600 hover:bg-blue-500 w-full"
+                  >
+                    <ArrowRightLeft className="h-4 w-4 mr-1.5" />
+                    {migrateRombelMut.isPending ? "Memproses..." : "Migrasi"}
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border bg-blue-50 dark:bg-blue-950 p-3 text-sm">
+                  <div className="font-semibold text-blue-700 dark:text-blue-300">Rombel Sama</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Salin santri ke rombel yang sama di tahun baru</div>
+                </div>
+                <div className="rounded-lg border bg-emerald-50 dark:bg-emerald-950 p-3 text-sm">
+                  <div className="font-semibold text-emerald-700 dark:text-emerald-300">Naik Kelas</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">Kelas 1→2, 2→3, dst. Kelas 5 dilewati (lulus)</div>
                 </div>
               </div>
             </CardContent>
