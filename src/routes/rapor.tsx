@@ -334,13 +334,21 @@ function Rapor() {
   };
 
   const numberToWords = (n: number): string => {
-    const ones = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    if (n === 0) return "Zero";
+    const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
                   "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
     const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-    if (n < 20) return ones[n];
-    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + ones[n % 10] : "");
-    if (n === 100) return "One Hundred";
-    return String(n);
+    
+    const convert = (num: number): string => {
+      if (num === 0) return "";
+      if (num < 20) return ones[num];
+      if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? " " + ones[num % 10] : "");
+      if (num < 1000) return ones[Math.floor(num / 100)] + " Hundred" + (num % 100 !== 0 ? " " + convert(num % 100) : "");
+      if (num < 1000000) return convert(Math.floor(num / 1000)) + " Thousand" + (num % 1000 !== 0 ? " " + convert(num % 1000) : "");
+      return String(num);
+    };
+
+    return convert(n).trim();
   };
 
   // Build label maps dari skillAspects dinamis
@@ -952,16 +960,13 @@ function RaporSheet({
             return (
               <>
                 <tr className="bg-sky-50 font-bold">
-                  <Td colSpan={2} center>Semester Final Grade</Td>
+                  <Td colSpan={2} rowSpan={2} center>Semester Final Grade</Td>
                   <Td center className="font-bold text-[11pt]">{total.toFixed(0)}</Td>
-                  <Td center className="font-bold text-[11pt]">{numberToWords(Math.round(total))}</Td>
-                  <Td center className="bg-white border-none"></Td>
+                  <Td colSpan={2} center className="font-bold text-[11pt]">{numberToWords(Math.round(total))}</Td>
                 </tr>
                 <tr className="bg-sky-50 font-bold">
-                  <Td colSpan={2} center className="border-none"></Td>
                   <Td center className="font-bold text-[11pt]">{avg.toFixed(1)}</Td>
-                  <Td center className="font-bold text-[11pt]">{numberToWords(Math.round(avg))} point {Math.round((avg % 1)*10) === 4 ? "Four" : "Zero"}</Td>
-                  <Td center className="bg-white border-none"></Td>
+                  <Td colSpan={2} center className="font-bold text-[11pt]">{numberToWords(Math.floor(avg))} point {numberToWords(Math.round((avg * 10) % 10))}</Td>
                 </tr>
               </>
             );
@@ -969,16 +974,13 @@ function RaporSheet({
           {isBlangko && (
             <>
               <tr className="bg-sky-50 font-bold">
-                <Td colSpan={2} center>Semester Final Grade</Td>
-                <Td center></Td>
-                <Td center></Td>
-                <Td center className="bg-white border-none"></Td>
+                <Td colSpan={2} rowSpan={2} center>Semester Final Grade</Td>
+                <Td center>&nbsp;</Td>
+                <Td colSpan={2} center>&nbsp;</Td>
               </tr>
               <tr className="bg-sky-50 font-bold">
-                <Td colSpan={2} center className="border-none"></Td>
-                <Td center></Td>
-                <Td center></Td>
-                <Td center className="bg-white border-none"></Td>
+                <Td center>&nbsp;</Td>
+                <Td colSpan={2} center>&nbsp;</Td>
               </tr>
             </>
           )}
@@ -1207,11 +1209,12 @@ function Th({
 }
 
 function Td({
-  children, center, colSpan, className,
-}: { children?: React.ReactNode; center?: boolean; colSpan?: number; className?: string }) {
+  children, center, colSpan, rowSpan, className,
+}: { children?: React.ReactNode; center?: boolean; colSpan?: number; rowSpan?: number; className?: string }) {
   return (
     <td
       colSpan={colSpan}
+      rowSpan={rowSpan}
       className={`border border-black px-2 py-1 ${className ?? ""}`}
       style={{ textAlign: center ? "center" : "left" }}
     >
