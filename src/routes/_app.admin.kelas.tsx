@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Trash2, Plus, Edit2, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { getClassesFn, createRombelFn, deleteRombelFn } from "@/lib/api/classes.functions";
+import { getClassesFn, createRombelFn, deleteRombelFn, updateRombelFn } from "@/lib/api/classes.functions";
+import { getUsersFn } from "@/lib/api/auth.functions";
 
 export const Route = createFileRoute("/_app/admin/kelas")({
   component: KelasPage,
@@ -19,10 +21,18 @@ function KelasPage() {
   const { token } = useAuth();
   const qc = useQueryClient();
   const [newRombel, setNewRombel] = useState({ classLevel: "", name: "" });
+  const [editingRombelId, setEditingRombelId] = useState<string | null>(null);
+  const [selectedWaliKelas, setSelectedWaliKelas] = useState<string>("none");
 
-  const { data: classes } = useQuery({
+  const { data: classes, isLoading: isClassesLoading } = useQuery({
     queryKey: ["classes"],
     queryFn: () => getClassesFn(),
+  });
+
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => getUsersFn({ data: { token: token! } }),
+    enabled: !!token,
   });
 
   const createRombelMut = useMutation({
@@ -43,6 +53,18 @@ function KelasPage() {
     mutationFn: (rombelId: string) => deleteRombelFn({ data: { token: token!, rombelId } }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["classes"] }); qc.invalidateQueries({ queryKey: ["rombels"] }); toast.success("Rombel dihapus"); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal menghapus rombel"),
+  });
+
+  const updateRombelMut = useMutation({
+    mutationFn: (rombelId: string) => 
+      updateRombelFn({ data: { token: token!, rombelId, waliKelasId: selectedWaliKelas === "none" ? null : selectedWaliKelas } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["classes"] });
+      qc.invalidateQueries({ queryKey: ["rombels"] });
+      setEditingRombelId(null);
+      toast.success("Rombel diperbarui");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal memperbarui rombel"),
   });
 
   return (
@@ -78,7 +100,12 @@ function KelasPage() {
           </div>
 
           <div className="space-y-4">
-            {(classes ?? []).map((cls) => (
+            {isClassesLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Memuat data kelas...
+              </div>
+            ) : (classes ?? []).map((cls) => (
               <div key={cls.id} className="p-4 border rounded-xl bg-card">
                 <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Kelas {cls.level}</h3>
                 <div className="flex flex-wrap gap-2">
@@ -86,23 +113,68 @@ function KelasPage() {
                     <div key={r.id as string} className="flex items-center gap-1 rounded-lg border bg-background px-3 py-1.5 text-sm">
                       <span className="font-medium">Kelas {cls.level}{r.name as string}</span>
                       {!!r.wali_kelas_name && <span className="text-xs text-muted-foreground ml-2">({r.wali_kelas_name as string})</span>}
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button className="ml-2 text-muted-foreground hover:text-red-500 transition-colors">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus rombel Kelas {cls.level}{r.name as string}?</AlertDialogTitle>
-                            <AlertDialogDescription>Semua data santri di rombel ini akan kehilangan penempatan.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction className="bg-red-600" onClick={() => deleteRombelMut.mutate(r.id as string)}>Hapus</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      
+                      <div className="flex items-center ml-2 border-l pl-2 gap-1">
+                        <Dialog open={editingRombelId === r.id} onOpenChange={(open) => {
+                          if (open) {
+                            setSelectedWaliKelas(r.wali_kelas_id as string || "none");
+                            setEditingRombelId(r.id as string);
+                          } else {
+                            setEditingRombelId(null);
+                          }
+                        }}>
+                          <DialogTrigger asChild>
+                            <button className="text-muted-foreground hover:text-blue-500 transition-colors p-1">
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Rombel Kelas {cls.level}{r.name as string}</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label>Wali Kelas</Label>
+                                <Select value={selectedWaliKelas} onValueChange={setSelectedWaliKelas}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Pilih Wali Kelas" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">-- Belum ada Wali Kelas --</SelectItem>
+                                    {(users ?? []).filter((u: any) => u.role === "guru" || u.role === "wali_kelas" || u.role === "admin").map((u: any) => (
+                                      <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex justify-end gap-2 pt-4">
+                                <Button variant="outline" onClick={() => setEditingRombelId(null)}>Batal</Button>
+                                <Button onClick={() => updateRombelMut.mutate(r.id as string)} disabled={updateRombelMut.isPending}>
+                                  {updateRombelMut.isPending ? "Menyimpan..." : "Simpan"}
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button className="text-muted-foreground hover:text-red-500 transition-colors p-1">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Hapus rombel Kelas {cls.level}{r.name as string}?</AlertDialogTitle>
+                              <AlertDialogDescription>Semua data santri di rombel ini akan kehilangan penempatan.</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Batal</AlertDialogCancel>
+                              <AlertDialogAction className="bg-red-600" onClick={() => deleteRombelMut.mutate(r.id as string)}>Hapus</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   ))}
                   {((cls.rombels as Array<unknown>) ?? []).length === 0 && (

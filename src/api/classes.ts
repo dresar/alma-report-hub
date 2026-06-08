@@ -72,19 +72,27 @@ export const createRombelFn = createServerFn()
     if (me.role !== "admin") throw new Error("Tidak punya akses");
     const classes = await sql`SELECT id FROM classes WHERE level = ${data.classLevel}`;
     if (classes.length === 0) throw new Error("Kelas tidak ditemukan");
-    const rows = await sql`
-      INSERT INTO rombels (class_id, name, wali_kelas_id)
-      VALUES (${classes[0].id}, ${data.name}, ${data.waliKelasId || null})
-      RETURNING *
-    `;
-    return rows[0]
-      ? {
-          id: rows[0].id as string,
-          class_id: rows[0].class_id as string,
-          name: rows[0].name as string,
-          wali_kelas_id: rows[0].wali_kelas_id as string | null,
-        }
-      : null;
+    
+    try {
+      const rows = await sql`
+        INSERT INTO rombels (class_id, name, wali_kelas_id)
+        VALUES (${classes[0].id}, ${data.name}, ${data.waliKelasId || null})
+        RETURNING *
+      `;
+      return rows[0]
+        ? {
+            id: rows[0].id as string,
+            class_id: rows[0].class_id as string,
+            name: rows[0].name as string,
+            wali_kelas_id: rows[0].wali_kelas_id as string | null,
+          }
+        : null;
+    } catch (err: any) {
+      if (err.message?.includes("duplicate key value") || err.message?.includes("rombels_class_id_name_key")) {
+        throw new Error(`Rombel ${data.name} sudah ada di Kelas ${data.classLevel}`);
+      }
+      throw err;
+    }
   });
 
 // ── Update rombel ──────────────────────────────────────────────────────

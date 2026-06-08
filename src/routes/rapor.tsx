@@ -893,13 +893,13 @@ function RaporSheet({
 
   // Shared Signature section
   const renderSignature = () => (
-    <div className={`${isSmall ? 'mt-4' : 'mt-10'} flex justify-end mr-4`}>
+    <div className="mt-10 flex justify-end mr-4">
       <div className={`text-center ${isSmall ? 'text-[10pt]' : 'text-[11pt]'}`} style={{ minWidth: 280 }}>
         <p>Mahato, {new Date(printDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
         <p>Principal</p>
-        <div style={{ height: isSmall ? 60 : 80, position: "relative" }} className="flex justify-center items-center">
+        <div style={{ height: isSmall ? 90 : 110, position: "relative" }} className="flex justify-center items-center">
           {showSignature && signatureImage && signatureImage.startsWith("data:image/") && (
-            <img src={signatureImage} alt="Signature" style={{ maxHeight: isSmall ? "60px" : "80px", maxWidth: "200px", objectFit: "contain" }} />
+            <img src={signatureImage} alt="Signature" style={{ maxHeight: isSmall ? "90px" : "110px", maxWidth: "220px", objectFit: "contain" }} />
           )}
         </div>
         <p className="font-bold">{headmasterName || "________________________"}</p>
@@ -1032,48 +1032,50 @@ function RaporSheet({
 
 
 
-      {/* Section C & D (Kelas 4 & 5) — Side by Side */}
-      <div className="flex gap-4 mt-2">
-        {showComputer && (
-          <div className="flex-1">
-            <SectionTitle isSmall={isSmall}>{sections.computer}. Computer Practical Skill</SectionTitle>
-            {isBlangko ? (
-              <BlangkoSkillBarTable labels={Object.values(computerLabels)} />
-            ) : (
-              computerScore ? (
-                <SkillTableSection
-                  data={computerChartData}
-                  score={computerScore.final_score}
-                />
+      {/* Section C & D (Kelas 4 & 5) — Horizontal Stacked Bars */}
+      {(showComputer || showDiscussion) && (
+        <div className="mt-2 flex flex-col gap-3">
+          {showComputer && (
+            <div>
+              <SectionTitle isSmall={isSmall}>{sections.computer}. Computer Practical Skill</SectionTitle>
+              {isBlangko ? (
+                <BlangkoStackedBar labels={Object.values(computerLabels)} />
               ) : (
-                <p className="text-[9pt] italic text-gray-400 mt-1">
-                  — Belum ada nilai praktik komputer —
-                </p>
-              )
-            )}
-          </div>
-        )}
+                computerScore ? (
+                  <StackedSkillBar
+                    data={computerChartData}
+                    score={computerScore.final_score}
+                  />
+                ) : (
+                  <p className="text-[9pt] italic text-gray-400 mt-1">
+                    — Belum ada nilai praktik komputer —
+                  </p>
+                )
+              )}
+            </div>
+          )}
 
-        {showDiscussion && (
-          <div className="flex-1">
-            <SectionTitle isSmall={isSmall}>{sections.discussion}. Discussion Skill</SectionTitle>
-            {isBlangko ? (
-              <BlangkoSkillBarTable labels={Object.values(discussionLabels)} />
-            ) : (
-              discussionScore ? (
-                <SkillTableSection
-                  data={discussionChartData}
-                  score={discussionScore.final_score}
-                />
+          {showDiscussion && (
+            <div>
+              <SectionTitle isSmall={isSmall}>{sections.discussion}. Discussion Skill</SectionTitle>
+              {isBlangko ? (
+                <BlangkoStackedBar labels={Object.values(discussionLabels)} />
               ) : (
-                <p className="text-[9pt] italic text-gray-400 mt-1">
-                  — Belum ada nilai diskusi —
-                </p>
-              )
-            )}
-          </div>
-        )}
-      </div>
+                discussionScore ? (
+                  <StackedSkillBar
+                    data={discussionChartData}
+                    score={discussionScore.final_score}
+                  />
+                ) : (
+                  <p className="text-[9pt] italic text-gray-400 mt-1">
+                    — Belum ada nilai diskusi —
+                  </p>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Attendance & Signature at the bottom of the page */}
       {!needsPage2 && (
@@ -1101,36 +1103,57 @@ function RaporSheet({
   );
 }
 
-// ── Skill table section (replaces Bar Chart for minimalistic look) ─────
-function SkillTableSection({
+// ── Stacked skill bar (replaces table to save vertical space) ─────────
+function StackedSkillBar({
   data, score,
 }: {
   data: { aspect?: string; name?: string; value: number }[];
   score: number | null;
 }) {
+  const colors = [
+    "bg-[#cde4c4]", "bg-[#8ccbcd]", "bg-[#60b3f5]", "bg-[#3f91de]", "bg-[#24589d]"
+  ];
   return (
-    <table className="w-full border-collapse text-[9.5pt] mt-1">
-      <thead>
-        <tr className="bg-sky-50">
-          <Th w="6%">No</Th>
-          <Th align="center">Aspect</Th>
-          <Th w="20%">Score</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {data.map((item, i) => (
-          <tr key={item.aspect || item.name} className={i % 2 === 1 ? "bg-gray-50/50" : ""}>
-            <Td center>{i + 1}</Td>
-            <Td>{item.aspect || item.name}</Td>
-            <Td center>{item.value ? item.value.toFixed(1) : "—"}</Td>
-          </tr>
-        ))}
-        <tr className="bg-sky-50 font-bold">
-          <Td colSpan={2} center>Average</Td>
-          <Td center>{score != null ? Number(score).toFixed(1) : "—"}</Td>
-        </tr>
-      </tbody>
-    </table>
+    <div className="mt-1.5 w-full flex text-[8.5pt] h-[42px] rounded-sm overflow-hidden border border-gray-300">
+      {data.map((item, i) => (
+        <div 
+          key={item.aspect || item.name} 
+          className={`flex-1 flex flex-col items-center justify-center text-center px-1 border-r border-white/50 last:border-0 ${colors[i % colors.length]}`}
+          style={{ color: i >= 3 ? "white" : "black" }}
+        >
+          <div className="font-semibold leading-tight line-clamp-2 w-full">{item.aspect || item.name}</div>
+          <div className="font-bold text-[9pt] mt-0.5">{item.value ? item.value.toFixed(1) : "—"}</div>
+        </div>
+      ))}
+      <div className="w-[10%] flex flex-col items-center justify-center text-center bg-gray-100 border-l border-gray-300 text-black">
+        <div className="font-semibold leading-none">Avg</div>
+        <div className="font-bold text-[9pt] mt-0.5">{score != null ? Number(score).toFixed(1) : "—"}</div>
+      </div>
+    </div>
+  );
+}
+
+function BlangkoStackedBar({ labels }: { labels: string[] }) {
+  const colors = [
+    "bg-[#cde4c4]", "bg-[#8ccbcd]", "bg-[#60b3f5]", "bg-[#3f91de]", "bg-[#24589d]"
+  ];
+  return (
+    <div className="mt-1.5 w-full flex text-[8.5pt] h-[42px] rounded-sm overflow-hidden border border-gray-300">
+      {labels.map((label, i) => (
+        <div 
+          key={label} 
+          className={`flex-1 flex flex-col items-center justify-center text-center px-1 border-r border-white/50 last:border-0 ${colors[i % colors.length]}`}
+          style={{ color: i >= 3 ? "white" : "black" }}
+        >
+          <div className="font-semibold leading-tight line-clamp-2 w-full">{label}</div>
+          <div className="font-bold text-[9pt] mt-0.5">&nbsp;</div>
+        </div>
+      ))}
+      <div className="w-[10%] flex flex-col items-center justify-center text-center bg-gray-100 border-l border-gray-300 text-black">
+        <div className="font-semibold leading-none">Avg</div>
+        <div className="font-bold text-[9pt] mt-0.5">&nbsp;</div>
+      </div>
+    </div>
   );
 }
 
