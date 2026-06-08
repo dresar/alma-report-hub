@@ -914,7 +914,7 @@ function RaporSheet({
         {renderHeaderInfo()}
 
         {/* Section A — Academic */}
-      <SectionTitle isSmall={isSmall}>{sections.academic}. CORE SUBJECT</SectionTitle>
+      <SectionTitle isSmall={isSmall}>{sections.academic}. Core Subject</SectionTitle>
       <table className={`w-full border-collapse ${isSmall ? 'text-[9.5pt]' : 'text-[10.5pt]'}`}>
         <thead>
           <tr className="bg-sky-100/50">
@@ -961,12 +961,12 @@ function RaporSheet({
               <>
                 <tr className="bg-sky-50 font-bold">
                   <Td colSpan={2} rowSpan={2} center>Semester Final Grade</Td>
-                  <Td center className="font-bold text-[11pt]">{total.toFixed(0)}</Td>
-                  <Td colSpan={2} center className="font-bold text-[11pt]">{numberToWords(Math.round(total))}</Td>
+                  <Td center>{total.toFixed(0)}</Td>
+                  <Td colSpan={2} center>{numberToWords(Math.round(total))}</Td>
                 </tr>
                 <tr className="bg-sky-50 font-bold">
-                  <Td center className="font-bold text-[11pt]">{avg.toFixed(1)}</Td>
-                  <Td colSpan={2} center className="font-bold text-[11pt]">{numberToWords(Math.floor(avg))} point {numberToWords(Math.round((avg * 10) % 10))}</Td>
+                  <Td center>{avg.toFixed(1)}</Td>
+                  <Td colSpan={2} center>{numberToWords(Math.floor(avg))} point {numberToWords(Math.round((avg * 10) % 10))}</Td>
                 </tr>
               </>
             );
