@@ -1125,10 +1125,6 @@ function StackedSkillBar({
           <div className="font-bold text-[9pt] mt-0.5">{item.value ? item.value.toFixed(1) : "—"}</div>
         </div>
       ))}
-      <div className="w-[10%] flex flex-col items-center justify-center text-center bg-gray-100 border-l border-gray-300 text-black">
-        <div className="font-semibold leading-none">Avg</div>
-        <div className="font-bold text-[9pt] mt-0.5">{score != null ? Number(score).toFixed(1) : "—"}</div>
-      </div>
     </div>
   );
 }
@@ -1149,10 +1145,6 @@ function BlangkoStackedBar({ labels }: { labels: string[] }) {
           <div className="font-bold text-[9pt] mt-0.5">&nbsp;</div>
         </div>
       ))}
-      <div className="w-[10%] flex flex-col items-center justify-center text-center bg-gray-100 border-l border-gray-300 text-black">
-        <div className="font-semibold leading-none">Avg</div>
-        <div className="font-bold text-[9pt] mt-0.5">&nbsp;</div>
-      </div>
     </div>
   );
 }
